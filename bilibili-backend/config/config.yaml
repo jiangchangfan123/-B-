@@ -1,0 +1,16 @@
+server:
+  port: "8080"
+  mode: "debug"
+
+database:
+  driver: "mysql"
+  host: "8.210.190.129"
+  port: "3306"
+  username: "bilibili"
+  password: "bilibili123"
+  database: "bilibili"
+  charset: "utf8mb4"
+
+jwt:
+  secret: "nebula-tv-secret-key-2026"
+  expires_in: 7200

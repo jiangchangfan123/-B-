@@ -1,0 +1,135 @@
+以下是可直接丢给大模型的登录/注册模块完整需求描述：
+
+---
+
+一、数据库设计
+
+创建一张 `users` 表，字段如下：
+
+- `id`：BIGINT 自增主键
+- `username`：VARCHAR(32)，非空，唯一索引，限制 3-20 位字母数字
+- `password`：VARCHAR(255)，非空，存储 bcrypt 哈希后的密码（明文禁止入库）
+- `email`：VARCHAR(128)，唯一索引
+- `avatar`：VARCHAR(255)，默认空字符串
+- `sign`：VARCHAR(200)，默认空字符串，个性签名
+- `role`：TINYINT，默认 1（1=普通用户，2=版主，3=管理员）
+- `coins`：INT，默认 0，硬币余额
+- `status`：TINYINT，默认 1（1=正常，2=禁用）
+- `created_at` 和 `updated_at`：TIMESTAMP，自动维护
+
+要求：用户名唯一、邮箱唯一、状态为禁用时不允许登录。
+
+---
+
+二、后端 API 设计（RESTful + JSON）
+
+统一响应格式：`{ code, message, data }`，code=200 为成功。
+
+1. 用户注册
+- POST `/api/v1/auth/register`
+- 请求体：`{ username, password, email }`
+- 校验规则：username 3-20 位字母数字、password 6-30 位、email 符合邮箱格式
+- 业务逻辑：检查用户名是否已存在 → bcrypt 哈希密码 → 入库 → 返回用户 id 和 username
+- 错误码：40001（参数错误）、40901（用户名已存在）
+
+2. 用户登录
+- POST `/api/v1/auth/login`
+- 请求体：`{ username, password }`
+- 业务逻辑：按用户名查询 → bcrypt 比对密码 → 检查账号状态 → 生成 JWT Token → 返回 token + 用户基本信息
+- 返回数据：`{ accessToken, userInfo: { id, username, avatar, role } }`
+- 错误码：40001（参数错误）、40002（用户不存在或密码错误）、40301（账号被禁用）
+- Token 有效期：2 小时，使用 HS256 签名
+
+3. 获取当前登录用户
+- GET `/api/v1/auth/me`
+- 请求头：`Authorization: Bearer <token>`
+- 业务逻辑：解析 JWT → 按 user_id 查库 → 返回用户信息（不含密码字段）
+- 错误码：40101（未登录）、40102（Token 无效或过期）
+
+4. 全局中间件要求
+- CORS 中间件：允许前端开发服务器跨域访问，允许头部 `Content-Type` 和 `Authorization`
+- JWT 认证中间件：解析 `Authorization: Bearer <token>`，将 `user_id` 和 `username` 注入请求上下文，供后续业务使用。未携带 Token 或 Token 无效时返回 401。
+
+---
+
+三、前端登录/注册页面设计
+
+延续深空科技风（Cyber-Tech），与主页视觉体系统一。
+
+整体布局
+- 全屏背景：极夜黑 `#08090d`，叠加 CSS 扫描线纹理（`repeating-linear-gradient` 1px 横向线，透明度 2%）
+- 居中卡片：宽度 420px，背景暗物质灰 `#0f1117` 半透明（`rgba(15,17,23,0.8)`），带毛玻璃（`backdrop-filter: blur(10px)`）
+- 卡片边框：1px `rgba(0,240,255,0.15)`，hover 时边框亮度提升并外发光
+- 圆角：4px（直角科技，禁止大圆角）
+
+顶部 Logo
+- 居中显示等宽编程字体标识：`> NEBULA.TV` 或 `// VOID`
+- 颜色霓虹青 `#00f0ff`，末尾带闪烁下划线光标（`animation: blink 1s step-end infinite`）
+- 下方可配一行小字副标题，如 `SYSTEM_ACCESS // v2.0`，等宽字体，暗灰色
+
+登录/注册切换标签
+- 两个按钮横向排列：`// LOGIN` 和 `// REGISTER`
+- 等宽字体，11-12px，字间距略宽
+- 未选中态：暗灰 `#5a5d6e`
+- 选中态：霓虹青 `#00f0ff`，带文字发光（`text-shadow`），底部有 1px 青色实线指示器
+- 切换时瞬时响应（0.1s），不要柔和过渡
+
+表单结构
+- 每个输入项包含：
+  - 标签：等宽字体，如 `> USERNAME`、`> PASSWORD`、`> EMAIL`，暗灰色，11px，字间距 0.08em
+  - 输入框：背景半透明黑，边框 1px 电光紫 `#b829dd`，圆角 4px，内边距 12px 16px
+  - 占位符文字：等宽字体，暗灰，如 `输入用户名...`、`6-30位密码...`
+- 输入框聚焦时：边框变为霓虹青 `#00f0ff`，外散发光阴影（`box-shadow: 0 0 12px rgba(0,240,255,0.2)`）
+- 输入框文字颜色：冷白 `#e4e5eb`，等宽字体
+
+提交按钮
+- 文字：`[ EXECUTE LOGIN ]` 或 `[ EXECUTE REGISTER ]`，等宽字体，14px
+- 默认态：电光紫 `#b829dd` 背景，白色文字
+- Hover 态：霓虹青 `#00f0ff` 背景，黑色文字，带扫描线从左到右扫过动画（伪元素 `::after`，0.6s linear）
+- 加载态：按钮禁用，文字变为 `LOADING...`，透明度降低
+
+交互细节
+- 表单提交前前端校验：用户名/密码/邮箱非空、用户名 3-20 位、密码 6-30 位、邮箱格式正确。校验失败时输入框边框闪烁红色（可选）或弹出错误提示。
+- 登录成功：将返回的 `accessToken` 存入 `localStorage`，Pinia Store 更新用户状态，跳转到首页。
+- 注册成功：提示"注册成功，请登录"，自动切换到登录标签并回填用户名。
+- 错误提示：使用极简风格，如输入框下方显示红色等宽文字 `> ERROR: 用户名已存在`，不要弹窗。
+
+---
+
+四、前端全局状态与路由
+
+Pinia 用户 Store
+- 维护状态：`token`（localStorage 同步）、`userInfo`（对象，含 id/username/avatar/role）、`isLoggedIn`（计算属性）
+- 方法：
+  - `login(form)`：调登录接口 → 存 token → 存 userInfo → localStorage 持久化
+  - `register(form)`：调注册接口
+  - `fetchUserInfo()`：用现有 token 调 `/auth/me`，失败则自动 logout
+  - `logout()`：清空 token 和 userInfo，清除 localStorage，跳登录页
+
+Axios 封装
+- 基地址指向后端 `http://localhost:8080/api/v1`（或实际部署地址）
+- 请求拦截器：自动从 localStorage 读取 token，注入 `Authorization: Bearer <token>` 头部
+- 响应拦截器：统一处理 code ≠ 200 的情况，401 时自动触发 logout 并跳登录页
+
+路由守卫
+- 需要登录的页面（如个人中心、投稿页）配置 `meta: { requiresAuth: true }`
+- 路由前置守卫：检查 Pinia 的 `isLoggedIn`，未登录则跳 `/login`，并携带 `redirect` 参数记录原目标地址，登录成功后回跳
+
+---
+
+五、Mock 数据（联调前使用）
+
+在前后端未联调时，前端可先用 Mock 数据跑通流程：
+
+- 登录 Mock：任意用户名密码返回固定 token 和用户信息
+- 注册 Mock：直接返回成功，延迟 500ms 模拟网络
+- 要求 Mock 层与真实 API 层接口完全一致，联调时只需替换 baseURL
+
+---
+
+六、安全与体验要求
+
+- 密码禁止明文传输（虽然用 HTTPS，但后端必须哈希存储）
+- Token 过期处理：前端 401 时自动登出，不要卡在半登录态
+- 页面刷新后：Pinia 从 localStorage 恢复 token，自动调用 `fetchUserInfo()` 恢复登录态
+- 登录页不要显示左侧边栏和顶部导航栏（全屏沉浸），或只保留极简顶部返回按钮

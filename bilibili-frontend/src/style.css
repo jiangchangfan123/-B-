@@ -1,1 +1,27 @@
-/* 深空科技主题 - 由 App.vue 统一管理，本文件保留但为空以避免默认样式冲突 */
+/* 深空科技主题 - 全局基础样式 */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: #08090d;
+  color: #e4e5eb;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  letter-spacing: 0.02em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* 等宽字体回退 */
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: local('JetBrains Mono'), local('Consolas'), local('Monaco'), local('monospace');
+}

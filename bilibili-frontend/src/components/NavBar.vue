@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useUserStore } from '../stores/user'
 import type { CategoryItem, HotSearchItem } from '../types/home'
 import { categoryList, hotSearchList } from '../mock/homeData'
+
+const router = useRouter()
+const userStore = useUserStore()
 
 const categories = ref<CategoryItem[]>(categoryList.map((c, i) => ({ ...c, active: i === 0 })))
 const hotSearches = ref<HotSearchItem[]>(hotSearchList)
@@ -150,13 +155,21 @@ onUnmounted(() => {
       </div>
 
       <!-- 投稿 -->
-      <button class="navbar__upload-btn">
+      <button v-if="userStore.isLoggedIn" class="navbar__upload-btn">
         <span class="navbar__upload-text">投稿</span>
       </button>
 
-      <!-- 用户头像 -->
-      <div class="navbar__avatar">
-        <div class="navbar__avatar-inner" />
+      <!-- 未登录：显示登录按钮 -->
+      <button v-if="!userStore.isLoggedIn" class="navbar__login-btn" @click="router.push('/login')">
+        <span class="navbar__login-text">// LOGIN</span>
+      </button>
+
+      <!-- 已登录：显示头像 -->
+      <div v-else class="navbar__avatar">
+        <img v-if="userStore.userInfo?.avatar" :src="userStore.userInfo.avatar" class="navbar__avatar-inner" />
+        <div v-else class="navbar__avatar-inner navbar__avatar-inner--default">
+          {{ userStore.userInfo?.username?.charAt(0).toUpperCase() }}
+        </div>
       </div>
     </div>
 
@@ -582,6 +595,40 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   background: linear-gradient(135deg, #14161f, #2a2d3a);
+}
+
+.navbar__avatar-inner--default {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: #00f0ff;
+  background: linear-gradient(135deg, #0a0a0f, #1a1c24);
+}
+
+/* 登录按钮 */
+.navbar__login-btn {
+  height: 36px;
+  padding: 0 20px;
+  background: transparent;
+  border: 1px solid #00f0ff;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+
+.navbar__login-btn:hover {
+  background: rgba(0, 240, 255, 0.1);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.2);
+}
+
+.navbar__login-text {
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 12px;
+  color: #00f0ff;
+  letter-spacing: 0.06em;
 }
 
 /* ========== 遮罩层 ========== */
