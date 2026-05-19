@@ -16,9 +16,9 @@ const router = createRouter({
       meta: { guestOnly: true },
     },
     {
-      path: '/upload',
-      name: 'Upload',
-      component: () => import('../views/HomeView.vue'), // 占位
+      path: '/personal',
+      name: 'Personal',
+      component: () => import('../views/PersonalView.vue'),
       meta: { requiresAuth: true },
     },
   ],

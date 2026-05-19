@@ -6,18 +6,33 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Setup(r *gin.Engine, authCtrl *controller.AuthController) {
+func Setup(r *gin.Engine, authCtrl *controller.AuthController, userCtrl *controller.UserController, uploadCtrl *controller.UploadController) {
 	// 全局中间件
 	r.Use(middleware.CORS())
+
+	// 静态文件服务（头像上传目录）
+	r.Static("/uploads", "./uploads")
 
 	// API v1
 	apiV1 := r.Group("/api/v1")
 	{
+		// 认证组（无需 JWT）
 		auth := apiV1.Group("/auth")
 		{
 			auth.POST("/register", authCtrl.Register)
 			auth.POST("/login", authCtrl.Login)
-			auth.GET("/me", middleware.Auth(), authCtrl.Me)
+		}
+
+		// 用户组（需 JWT）
+		users := apiV1.Group("/users")
+		users.Use(middleware.Auth())
+		{
+			users.GET("/me", userCtrl.Me)
+			users.PUT("/me", userCtrl.UpdateMe)
+			users.PUT("/me/password", userCtrl.UpdatePassword)
+			users.POST("/me/avatar", uploadCtrl.UploadAvatar)
+			users.GET("/me/videos", userCtrl.MyVideos)
+			users.GET("/me/history", userCtrl.History)
 		}
 	}
 }

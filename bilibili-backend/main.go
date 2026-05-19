@@ -11,6 +11,7 @@ import (
 	"bilibili-backend/model"
 	"bilibili-backend/router"
 	"bilibili-backend/service"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -33,21 +34,32 @@ func main() {
 	}
 
 	// 自动迁移
-	if err := db.AutoMigrate(&model.User{}); err != nil {
+	if err := db.AutoMigrate(&model.User{}, &model.Video{}, &model.VideoHistory{}); err != nil {
 		log.Fatalf("迁移失败: %v", err)
 	}
 
-	// DAO / Service / Controller
+	// DAO
 	userDao := dao.NewUserDao(db)
+	videoDao := dao.NewVideoDao(db)
+	historyDao := dao.NewHistoryDao(db)
+
+	// Service
 	authService := service.NewAuthService(userDao)
+	userService := service.NewUserService(userDao)
+	_ = videoDao
+	_ = historyDao
+
+	// Controller
 	authCtrl := controller.NewAuthController(authService)
+	userCtrl := controller.NewUserController(userService)
+	uploadCtrl := controller.NewUploadController(userService)
 
 	// Gin
 	gin.SetMode(config.C.Server.Mode)
 	r := gin.Default()
 	r.Use(middleware.CORS())
 
-	router.Setup(r, authCtrl)
+	router.Setup(r, authCtrl, userCtrl, uploadCtrl)
 
 	addr := ":" + config.C.Server.Port
 	fmt.Println("🚀 Server running on http://localhost" + addr)

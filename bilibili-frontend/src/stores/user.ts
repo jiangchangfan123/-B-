@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { login as loginApi, register as registerApi, getMe } from '../api/auth'
-import type { LoginForm, RegisterForm, UserInfo } from '../types/auth'
+import { login as loginApi, register as registerApi } from '../api/auth'
+import { getMeDetail, updateProfile, uploadAvatar, updatePassword } from '../api/user'
+import type { LoginForm, RegisterForm, UserInfo, UserProfile } from '../types/auth'
 import { TOKEN_KEY } from '../types/auth'
 
 export const useUserStore = defineStore('user', () => {
@@ -31,13 +32,44 @@ export const useUserStore = defineStore('user', () => {
       throw new Error('未登录')
     }
     try {
-      const res = await getMe()
-      userInfo.value = res
+      const res = await getMeDetail()
+      userInfo.value = {
+        id: res.id,
+        username: res.username,
+        nickname: res.nickname,
+        avatar: res.avatar,
+        role: res.role,
+        email: res.email,
+        sign: res.sign,
+        coins: res.coins,
+        created_at: res.created_at,
+      }
       return res
     } catch {
       logout()
       throw new Error('获取用户信息失败')
     }
+  }
+
+  async function updateUserProfile(data: { sign?: string; nickname?: string }) {
+    await updateProfile(data)
+    // 更新本地状态
+    if (userInfo.value) {
+      if (data.sign !== undefined) userInfo.value.sign = data.sign
+      if (data.nickname !== undefined) userInfo.value.nickname = data.nickname
+    }
+  }
+
+  async function updateUserAvatar(file: File) {
+    const res = await uploadAvatar(file)
+    if (userInfo.value) {
+      userInfo.value.avatar = res.avatar
+    }
+    return res.avatar
+  }
+
+  async function updateUserPassword(oldPwd: string, newPwd: string) {
+    await updatePassword({ oldPassword: oldPwd, newPassword: newPwd, confirmPassword: newPwd })
   }
 
   function logout() {
@@ -60,6 +92,9 @@ export const useUserStore = defineStore('user', () => {
     login,
     register,
     fetchUserInfo,
+    updateUserProfile,
+    updateUserAvatar,
+    updateUserPassword,
     logout,
     restore,
   }

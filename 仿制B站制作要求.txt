@@ -1,135 +1,152 @@
-以下是可直接丢给大模型的登录/注册模块完整需求描述：
+请基于以下修改后的需求，编写个人中心（PersonalView）页面，与之前的主页/登录页保持完全统一的深空科技风。
 
----
+一、数据库变更
 
-一、数据库设计
-
-创建一张 `users` 表，字段如下：
-
-- `id`：BIGINT 自增主键
-- `username`：VARCHAR(32)，非空，唯一索引，限制 3-20 位字母数字
-- `password`：VARCHAR(255)，非空，存储 bcrypt 哈希后的密码（明文禁止入库）
-- `email`：VARCHAR(128)，唯一索引
-- `avatar`：VARCHAR(255)，默认空字符串
+`users` 表确保以下字段存在：
+- `avatar`：VARCHAR(255)，默认空字符串，头像 URL
 - `sign`：VARCHAR(200)，默认空字符串，个性签名
-- `role`：TINYINT，默认 1（1=普通用户，2=版主，3=管理员）
-- `coins`：INT，默认 0，硬币余额
-- `status`：TINYINT，默认 1（1=正常，2=禁用）
-- `created_at` 和 `updated_at`：TIMESTAMP，自动维护
+- `email`：VARCHAR(128)，唯一索引
 
-要求：用户名唯一、邮箱唯一、状态为禁用时不允许登录。
+新增表（简化版播放历史，不记录秒级进度）：
+- `video_history`：id（自增）、user_id（关联 users）、video_id（关联 videos）、created_at（观看时间）。联合索引 `(user_id, created_at)`。
+- 不存 progress 字段，不实现断点续播，只记录"什么时候看过"。
 
----
+二、后端 API 设计（全部需要 JWT 认证）
 
-二、后端 API 设计（RESTful + JSON）
+1. 获取当前登录用户信息
+- GET `/api/v1/users/me`
+- 返回：`id, username, email, avatar, sign, role, coins, created_at`
+- 严禁返回 password
 
-统一响应格式：`{ code, message, data }`，code=200 为成功。
+2. 更新个人资料
+- PUT `/api/v1/users/me`
+- 请求体：`{ sign?: string, email?: string }`
+- 校验：sign 最长 200 字符，email 符合邮箱格式
+- 用户名不可修改
 
-1. 用户注册
-- POST `/api/v1/auth/register`
-- 请求体：`{ username, password, email }`
-- 校验规则：username 3-20 位字母数字、password 6-30 位、email 符合邮箱格式
-- 业务逻辑：检查用户名是否已存在 → bcrypt 哈希密码 → 入库 → 返回用户 id 和 username
-- 错误码：40001（参数错误）、40901（用户名已存在）
+3. 修改密码
+- PUT `/api/v1/users/me/password`
+- 请求体：`{ oldPassword: string, newPassword: string }`
+- 校验：newPassword 6-30 位
+- 业务逻辑：bcrypt 比对旧密码 → bcrypt 哈希新密码 → 更新数据库 → 返回成功
+- 错误码：40001（参数错误）、40002（旧密码错误）
+- 注意：不需要密码强度条，前端不做任何强度校验和可视化，只做空值和长度校验
 
-2. 用户登录
-- POST `/api/v1/auth/login`
-- 请求体：`{ username, password }`
-- 业务逻辑：按用户名查询 → bcrypt 比对密码 → 检查账号状态 → 生成 JWT Token → 返回 token + 用户基本信息
-- 返回数据：`{ accessToken, userInfo: { id, username, avatar, role } }`
-- 错误码：40001（参数错误）、40002（用户不存在或密码错误）、40301（账号被禁用）
-- Token 有效期：2 小时，使用 HS256 签名
+4. 头像上传
+- POST `/api/v1/users/me/avatar`
+- `multipart/form-data`，字段名 `file`
+- 限制：jpg/png/webp，最大 5MB
+- 业务逻辑：接收文件 → UUID 重命名 → 上传到 MinIO 或本地 `uploads/avatars/` → 返回可访问 URL → 更新 users.avatar
+- 返回：`{ avatar: "http://xxx/avatar/xxx.jpg" }`
 
-3. 获取当前登录用户
-- GET `/api/v1/auth/me`
-- 请求头：`Authorization: Bearer <token>`
-- 业务逻辑：解析 JWT → 按 user_id 查库 → 返回用户信息（不含密码字段）
-- 错误码：40101（未登录）、40102（Token 无效或过期）
+5. 获取我的视频列表
+- GET `/api/v1/users/me/videos?page=1&size=20`
+- 返回视频列表（标题、封面、播放量、状态、创建时间），按 created_at 倒序分页
 
-4. 全局中间件要求
-- CORS 中间件：允许前端开发服务器跨域访问，允许头部 `Content-Type` 和 `Authorization`
-- JWT 认证中间件：解析 `Authorization: Bearer <token>`，将 `user_id` 和 `username` 注入请求上下文，供后续业务使用。未携带 Token 或 Token 无效时返回 401。
-
----
-
-三、前端登录/注册页面设计
-
-延续深空科技风（Cyber-Tech），与主页视觉体系统一。
-
-整体布局
-- 全屏背景：极夜黑 `#08090d`，叠加 CSS 扫描线纹理（`repeating-linear-gradient` 1px 横向线，透明度 2%）
-- 居中卡片：宽度 420px，背景暗物质灰 `#0f1117` 半透明（`rgba(15,17,23,0.8)`），带毛玻璃（`backdrop-filter: blur(10px)`）
-- 卡片边框：1px `rgba(0,240,255,0.15)`，hover 时边框亮度提升并外发光
-- 圆角：4px（直角科技，禁止大圆角）
-
-顶部 Logo
-- 居中显示等宽编程字体标识：`> NEBULA.TV` 或 `// VOID`
-- 颜色霓虹青 `#00f0ff`，末尾带闪烁下划线光标（`animation: blink 1s step-end infinite`）
-- 下方可配一行小字副标题，如 `SYSTEM_ACCESS // v2.0`，等宽字体，暗灰色
-
-登录/注册切换标签
-- 两个按钮横向排列：`// LOGIN` 和 `// REGISTER`
-- 等宽字体，11-12px，字间距略宽
-- 未选中态：暗灰 `#5a5d6e`
-- 选中态：霓虹青 `#00f0ff`，带文字发光（`text-shadow`），底部有 1px 青色实线指示器
-- 切换时瞬时响应（0.1s），不要柔和过渡
-
-表单结构
-- 每个输入项包含：
-  - 标签：等宽字体，如 `> USERNAME`、`> PASSWORD`、`> EMAIL`，暗灰色，11px，字间距 0.08em
-  - 输入框：背景半透明黑，边框 1px 电光紫 `#b829dd`，圆角 4px，内边距 12px 16px
-  - 占位符文字：等宽字体，暗灰，如 `输入用户名...`、`6-30位密码...`
-- 输入框聚焦时：边框变为霓虹青 `#00f0ff`，外散发光阴影（`box-shadow: 0 0 12px rgba(0,240,255,0.2)`）
-- 输入框文字颜色：冷白 `#e4e5eb`，等宽字体
-
-提交按钮
-- 文字：`[ EXECUTE LOGIN ]` 或 `[ EXECUTE REGISTER ]`，等宽字体，14px
-- 默认态：电光紫 `#b829dd` 背景，白色文字
-- Hover 态：霓虹青 `#00f0ff` 背景，黑色文字，带扫描线从左到右扫过动画（伪元素 `::after`，0.6s linear）
-- 加载态：按钮禁用，文字变为 `LOADING...`，透明度降低
-
-交互细节
-- 表单提交前前端校验：用户名/密码/邮箱非空、用户名 3-20 位、密码 6-30 位、邮箱格式正确。校验失败时输入框边框闪烁红色（可选）或弹出错误提示。
-- 登录成功：将返回的 `accessToken` 存入 `localStorage`，Pinia Store 更新用户状态，跳转到首页。
-- 注册成功：提示"注册成功，请登录"，自动切换到登录标签并回填用户名。
-- 错误提示：使用极简风格，如输入框下方显示红色等宽文字 `> ERROR: 用户名已存在`，不要弹窗。
+6. 获取播放历史（简化版）
+- GET `/api/v1/users/me/history?page=1&size=20`
+- 返回视频列表 + 观看时间（`watched_at` 字段，如 `"2025-05-19T14:30:00Z"`）
+- 不返回 progress、不返回百分比、不实现断点续播
 
 ---
 
-四、前端全局状态与路由
+三、前端页面设计：个人中心（PersonalView）
 
-Pinia 用户 Store
-- 维护状态：`token`（localStorage 同步）、`userInfo`（对象，含 id/username/avatar/role）、`isLoggedIn`（计算属性）
-- 方法：
-  - `login(form)`：调登录接口 → 存 token → 存 userInfo → localStorage 持久化
-  - `register(form)`：调注册接口
-  - `fetchUserInfo()`：用现有 token 调 `/auth/me`，失败则自动 logout
-  - `logout()`：清空 token 和 userInfo，清除 localStorage，跳登录页
+延续深空科技风，使用标准三栏布局（顶部导航栏 + 左侧边栏 + 主体内容区）。
 
-Axios 封装
-- 基地址指向后端 `http://localhost:8080/api/v1`（或实际部署地址）
-- 请求拦截器：自动从 localStorage 读取 token，注入 `Authorization: Bearer <token>` 头部
-- 响应拦截器：统一处理 code ≠ 200 的情况，401 时自动触发 logout 并跳登录页
+左侧个人信息卡片（280px）
+- 背景 `#0f1117`，边框 1px `rgba(0,240,255,0.1)`，圆角 4px。
+- 头像区：120×120 方形（直角），边框 2px 霓虹青 `#00f0ff`，带发光。Hover 显示半透明遮罩层 + 文字 `> UPLOAD`，点击触发文件选择。上传中显示扫描线扫过动画。
+- 用户名：等宽字体，冷白 `#e4e5eb`，20px。下方显示用户 ID（如 `ID: 10086`，等宽字体，暗灰 `#5a5d6e`）。
+- 个性签名：暗灰 `#8b8fa3`，14px，最多 2 行，超出省略号。未设置显示 `> 暂无签名...`。
+- 数据栏：横向排列，等宽字体，暗灰，如 `▶ 12 投稿` `◆ 3.4K 播放` `■ 128 粉丝`。
+- 操作按钮：`[ EDIT PROFILE ]` 电光紫按钮，hover 变霓虹青，带扫描线动画。
 
-路由守卫
-- 需要登录的页面（如个人中心、投稿页）配置 `meta: { requiresAuth: true }`
-- 路由前置守卫：检查 Pinia 的 `isLoggedIn`，未登录则跳 `/login`，并携带 `redirect` 参数记录原目标地址，登录成功后回跳
-
----
-
-五、Mock 数据（联调前使用）
-
-在前后端未联调时，前端可先用 Mock 数据跑通流程：
-
-- 登录 Mock：任意用户名密码返回固定 token 和用户信息
-- 注册 Mock：直接返回成功，延迟 500ms 模拟网络
-- 要求 Mock 层与真实 API 层接口完全一致，联调时只需替换 baseURL
+右侧 Tab 导航
+选项：`// 资料设置 [SETTINGS]`、`// 我的视频 [ARCHIVE]`、`// 播放历史 [HISTORY]`、`// 账号安全 [SECURITY]`。
+- 未选中：暗灰 `#5a5d6e`
+- 选中：霓虹青 `#00f0ff`，底部 1px 青色实线 + `■` 方块指示器
+- 切换瞬时响应（0.1s）
 
 ---
 
-六、安全与体验要求
+Tab 1：资料设置（Settings）
 
-- 密码禁止明文传输（虽然用 HTTPS，但后端必须哈希存储）
-- Token 过期处理：前端 401 时自动登出，不要卡在半登录态
-- 页面刷新后：Pinia 从 localStorage 恢复 token，自动调用 `fetchUserInfo()` 恢复登录态
-- 登录页不要显示左侧边栏和顶部导航栏（全屏沉浸），或只保留极简顶部返回按钮
+表单垂直排列，间距 32px：
+
+- 用户名：只读展示，等宽字体，暗灰底色输入框，禁止编辑，右侧显示 `> LOCKED` 标签。
+- 邮箱：输入框，暗背景、紫边框、聚焦发青光。前端校验邮箱格式。
+- 个性签名：多行文本域（textarea），高度 100px，边框紫，聚焦青。右下角显示 `0/200` 字数统计（等宽字体，超限变红）。
+- 保存按钮：`[ SAVE CHANGES ]`，电光紫 → hover 霓虹青，扫描线扫过。点击后显示 `> SYNCING...`，成功后显示 `> OK` 并恢复。
+
+---
+
+Tab 2：我的视频（Archive）
+
+- 顶部统计栏：`TOTAL_UPLOADS: 12` `TOTAL_VIEWS: 45.2K` `PENDING: 2`，等宽字体，暗灰。
+- 视频列表：与主页 VideoCard 风格一致，增加状态标签：
+  - `[PUBLISHED]` 霓虹青边框
+  - `[PENDING]` 橙色边框（`#f0a500`）
+  - `[BANNED]` 红色边框（`#ff4757`）
+- 卡片 hover 显示操作按钮：`[ EDIT ]` `[ DELETE ]`，极简线条按钮。
+- 空状态：居中 `> NO_DATA_FOUND`，等宽字体，暗灰，下方带上传入口按钮。
+
+---
+
+Tab 3：播放历史（History）—— 简化版
+
+- 纵向列表，每条记录一行：
+  - 左侧：60×40 小封面（直角，16:9），边框 1px 暗灰。
+  - 中间：视频标题（冷白，hover 变青）+ 观看时间（暗灰，如 `> 3小时前`）。
+  - 右侧无操作按钮，不显示进度条，不显示百分比，无 [CONTINUE] 按钮。
+- 点击整行直接跳转到视频播放页，从 0 秒开始播放，不续播。
+- 底部：`[ CLEAR ALL HISTORY ]` 按钮，红色边框，点击后终端风格二次确认（`CONFIRM_DELETE? [Y/N]`）。
+- 空状态：`> NO_HISTORY_FOUND`。
+
+---
+
+Tab 4：账号安全（Security）
+
+- 修改密码区块：
+  - 标签：`> OLD_PASSWORD`、`> NEW_PASSWORD`、`> CONFIRM_PASSWORD`
+  - 三个输入框，type="password"，样式统一（暗背景、紫边框、聚焦青）
+  - 删除密码强度条，不做任何实时强度校验和可视化条。
+  - 前端只做基础校验：三框非空、新密码 6-30 位、两次新密码一致。
+  - 提交按钮：`[ UPDATE PASSWORD ]`，电光紫 → 霓虹青，扫描线扫过。
+  - 成功后自动退出登录，提示 `> TOKEN_EXPIRED // RELOGIN REQUIRED`，清空 Pinia 和 localStorage，跳登录页。
+
+---
+
+四、前端状态与交互
+
+Pinia 用户 Store 扩展
+- `updateProfile(data)`：调 PUT `/api/v1/users/me`，成功后更新本地 `userInfo`。
+- `updateAvatar(file)`：调 POST `/api/v1/users/me/avatar`，FormData 上传，成功后更新 `userInfo.avatar`。
+- `updatePassword(oldPwd, newPwd)`：调密码接口，成功后自动 `logout()` 并跳登录页。
+- `fetchMyVideos(page)`：调我的视频接口，维护 `myVideos` 列表。
+- `fetchHistory(page)`：调播放历史接口，维护 `historyList`（只含视频信息和观看时间，无 progress）。
+
+头像上传交互
+- 点击头像或 `> UPLOAD` 遮罩 → 唤起隐藏 `<input type="file" accept="image/*" hidden>`。
+- 选择文件后前端先预览（FileReader base64 临时显示），同时调接口上传。
+- 上传中头像显示扫描线动画，成功后替换为返回 URL。
+- 限制 5MB，超限提示 `> ERROR: FILE_TOO_LARGE`。
+
+路由
+- 路径：`/personal`，命名路由 `personal`。
+- 需要登录，路由守卫拦截未登录用户跳 `/login?redirect=/personal`。
+
+---
+
+五、视觉 checklist（与主页/登录页统一）
+
+- 所有输入框聚焦时边框由电光紫 `#b829dd` 变为霓虹青 `#00f0ff`，外散发光阴影
+- 所有按钮 hover 时紫变青，带扫描线从左到右扫过（伪元素 0.6s linear）
+- 标签文字使用 `>` 前缀，等宽字体，11-12px，暗灰 `#8b8fa3`
+- 选中态使用霓虹青 + `■` 方块指示器 + 底部 1px 实线
+- 卡片背景 `#0f1117`，边框 1px `rgba(255,255,255,0.06)`
+- 空状态、加载中、错误提示全部使用等宽字体终端风格文案
+- 头像、封面、按钮全部直角或 4px 小圆角，禁止大圆角
+- 全局禁用弹性动画，hover/切换瞬时响应或 0.1s/0.2s linear/ease
+
+请直接输出完整的、可直接运行的代码，状态管理使用 Pinia，API 调用使用已封装的 Axios 实例，与之前的主页/登录页视觉体系完全统一。代码组织方式由你自行决定。

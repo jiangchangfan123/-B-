@@ -3,6 +3,7 @@ package model
 type User struct {
 	BaseModel
 	Username string `gorm:"type:varchar(32);not null;uniqueIndex" json:"username"`
+	Nickname string `gorm:"type:varchar(32);default:''" json:"nickname"`
 	Password string `gorm:"type:varchar(255);not null" json:"-"`
 	Email    string `gorm:"type:varchar(128);uniqueIndex" json:"email"`
 	Avatar   string `gorm:"type:varchar(255);default:''" json:"avatar"`

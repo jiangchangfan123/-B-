@@ -1,5 +1,6 @@
 package config
 
+//引入 viper 库，Go 生态最流行的配置管理工具，支持 YAML/JSON/TOML/环境变量等多种格式。
 import (
 	"github.com/spf13/viper"
 )
@@ -30,13 +31,14 @@ type JWTConfig struct {
 	ExpiresIn int    `mapstructure:"expires_in"`
 }
 
+// 全局配置变量
 var C *Config
 
 func Init() error {
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath("./config")
-	viper.AddConfigPath(".")
+	viper.SetConfigName("config")   // 配置文件名：config（不带后缀）
+	viper.SetConfigType("yaml")     // 文件格式：YAML
+	viper.AddConfigPath("./config") //先找 ./config/config.yaml
+	viper.AddConfigPath(".")        // 再找 ./config.yaml（兜底）
 
 	// 默认值
 	viper.SetDefault("server.port", "8080")
@@ -44,12 +46,15 @@ func Init() error {
 	viper.SetDefault("jwt.secret", "nebula-tv-secret-key-2026")
 	viper.SetDefault("jwt.expires_in", 7200)
 
+	//读取配置文件
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			return err
 		}
 	}
 
+	//创建空配置对象
 	C = &Config{}
+	// 把 viper 里的数据映射到 C 的各个字段
 	return viper.Unmarshal(C)
 }

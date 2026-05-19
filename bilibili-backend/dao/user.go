@@ -40,3 +40,7 @@ func (d *UserDao) ExistsUsername(username string) (bool, error) {
 	err := d.db.Model(&model.User{}).Where("username = ?", username).Count(&count).Error
 	return count > 0, err
 }
+
+func (d *UserDao) Update(user *model.User) error {
+	return d.db.Save(user).Error
+}

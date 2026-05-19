@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import type { CategoryItem, HotSearchItem } from '../types/home'
@@ -7,6 +7,17 @@ import { categoryList, hotSearchList } from '../mock/homeData'
 
 const router = useRouter()
 const userStore = useUserStore()
+
+// 头像 URL 拼接
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'
+const SERVER_BASE = API_BASE.replace(/\/api\/v1\/?$/, '')
+
+const navbarAvatarUrl = computed(() => {
+  const avatar = userStore.userInfo?.avatar
+  if (!avatar) return ''
+  if (avatar.startsWith('http')) return avatar
+  return SERVER_BASE + avatar
+})
 
 const categories = ref<CategoryItem[]>(categoryList.map((c, i) => ({ ...c, active: i === 0 })))
 const hotSearches = ref<HotSearchItem[]>(hotSearchList)
@@ -165,10 +176,10 @@ onUnmounted(() => {
       </button>
 
       <!-- 已登录：显示头像 -->
-      <div v-else class="navbar__avatar">
-        <img v-if="userStore.userInfo?.avatar" :src="userStore.userInfo.avatar" class="navbar__avatar-inner" />
+      <div v-else class="navbar__avatar" @click="router.push('/personal')" style="cursor: pointer;">
+        <img v-if="navbarAvatarUrl" :src="navbarAvatarUrl" class="navbar__avatar-inner" />
         <div v-else class="navbar__avatar-inner navbar__avatar-inner--default">
-          {{ userStore.userInfo?.username?.charAt(0).toUpperCase() }}
+          {{ (userStore.userInfo?.nickname || userStore.userInfo?.username || '').charAt(0).toUpperCase() }}
         </div>
       </div>
     </div>
