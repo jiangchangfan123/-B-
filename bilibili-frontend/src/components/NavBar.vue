@@ -166,7 +166,7 @@ onUnmounted(() => {
       </div>
 
       <!-- 投稿 -->
-      <button v-if="userStore.isLoggedIn" class="navbar__upload-btn">
+      <button v-if="userStore.isLoggedIn" class="navbar__upload-btn" @click="router.push('/upload')">
         <span class="navbar__upload-text">投稿</span>
       </button>
 

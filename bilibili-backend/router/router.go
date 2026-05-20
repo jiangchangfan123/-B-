@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Setup(r *gin.Engine, authCtrl *controller.AuthController, userCtrl *controller.UserController, uploadCtrl *controller.UploadController) {
+func Setup(r *gin.Engine, authCtrl *controller.AuthController, userCtrl *controller.UserController, uploadCtrl *controller.UploadController, videoCtrl *controller.VideoController) {
 	// 全局中间件
 	r.Use(middleware.CORS())
 
@@ -33,6 +33,21 @@ func Setup(r *gin.Engine, authCtrl *controller.AuthController, userCtrl *control
 			users.POST("/me/avatar", uploadCtrl.UploadAvatar)
 			users.GET("/me/videos", userCtrl.MyVideos)
 			users.GET("/me/history", userCtrl.History)
+		}
+
+		// 视频组（部分需 JWT）
+		videos := apiV1.Group("/videos")
+		{
+			videos.GET("", videoCtrl.List)
+			videos.GET("/:id", videoCtrl.Detail)
+			videos.GET("/:id/transcode", videoCtrl.TranscodeStatus)
+		}
+		// 需登录的视频操作
+		authVideos := apiV1.Group("/videos")
+		authVideos.Use(middleware.Auth())
+		{
+			authVideos.POST("", videoCtrl.Upload)
+			authVideos.DELETE("/:id", videoCtrl.Delete)
 		}
 	}
 }

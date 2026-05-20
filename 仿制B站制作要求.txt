@@ -1,152 +1,218 @@
-请基于以下修改后的需求，编写个人中心（PersonalView）页面，与之前的主页/登录页保持完全统一的深空科技风。
-
-一、数据库变更
-
-`users` 表确保以下字段存在：
-- `avatar`：VARCHAR(255)，默认空字符串，头像 URL
-- `sign`：VARCHAR(200)，默认空字符串，个性签名
-- `email`：VARCHAR(128)，唯一索引
-
-新增表（简化版播放历史，不记录秒级进度）：
-- `video_history`：id（自增）、user_id（关联 users）、video_id（关联 videos）、created_at（观看时间）。联合索引 `(user_id, created_at)`。
-- 不存 progress 字段，不实现断点续播，只记录"什么时候看过"。
-
-二、后端 API 设计（全部需要 JWT 认证）
-
-1. 获取当前登录用户信息
-- GET `/api/v1/users/me`
-- 返回：`id, username, email, avatar, sign, role, coins, created_at`
-- 严禁返回 password
-
-2. 更新个人资料
-- PUT `/api/v1/users/me`
-- 请求体：`{ sign?: string, email?: string }`
-- 校验：sign 最长 200 字符，email 符合邮箱格式
-- 用户名不可修改
-
-3. 修改密码
-- PUT `/api/v1/users/me/password`
-- 请求体：`{ oldPassword: string, newPassword: string }`
-- 校验：newPassword 6-30 位
-- 业务逻辑：bcrypt 比对旧密码 → bcrypt 哈希新密码 → 更新数据库 → 返回成功
-- 错误码：40001（参数错误）、40002（旧密码错误）
-- 注意：不需要密码强度条，前端不做任何强度校验和可视化，只做空值和长度校验
-
-4. 头像上传
-- POST `/api/v1/users/me/avatar`
-- `multipart/form-data`，字段名 `file`
-- 限制：jpg/png/webp，最大 5MB
-- 业务逻辑：接收文件 → UUID 重命名 → 上传到 MinIO 或本地 `uploads/avatars/` → 返回可访问 URL → 更新 users.avatar
-- 返回：`{ avatar: "http://xxx/avatar/xxx.jpg" }`
-
-5. 获取我的视频列表
-- GET `/api/v1/users/me/videos?page=1&size=20`
-- 返回视频列表（标题、封面、播放量、状态、创建时间），按 created_at 倒序分页
-
-6. 获取播放历史（简化版）
-- GET `/api/v1/users/me/history?page=1&size=20`
-- 返回视频列表 + 观看时间（`watched_at` 字段，如 `"2025-05-19T14:30:00Z"`）
-- 不返回 progress、不返回百分比、不实现断点续播
+请基于以下需求，实现视频投稿与播放的完整功能模块，与之前的主页/登录/个人中心保持完全统一的深空科技风。
 
 ---
 
-三、前端页面设计：个人中心（PersonalView）
+一、数据库设计
 
-延续深空科技风，使用标准三栏布局（顶部导航栏 + 左侧边栏 + 主体内容区）。
+在 `bilibili` 库中创建/调整 `videos` 表：
 
-左侧个人信息卡片（280px）
-- 背景 `#0f1117`，边框 1px `rgba(0,240,255,0.1)`，圆角 4px。
-- 头像区：120×120 方形（直角），边框 2px 霓虹青 `#00f0ff`，带发光。Hover 显示半透明遮罩层 + 文字 `> UPLOAD`，点击触发文件选择。上传中显示扫描线扫过动画。
-- 用户名：等宽字体，冷白 `#e4e5eb`，20px。下方显示用户 ID（如 `ID: 10086`，等宽字体，暗灰 `#5a5d6e`）。
-- 个性签名：暗灰 `#8b8fa3`，14px，最多 2 行，超出省略号。未设置显示 `> 暂无签名...`。
-- 数据栏：横向排列，等宽字体，暗灰，如 `▶ 12 投稿` `◆ 3.4K 播放` `■ 128 粉丝`。
-- 操作按钮：`[ EDIT PROFILE ]` 电光紫按钮，hover 变霓虹青，带扫描线动画。
+- `id`：BIGINT 自增主键
+- `user_id`：BIGINT，关联 `users.id`，非空
+- `title`：VARCHAR(200)，非空
+- `description`：TEXT，视频简介
+- `cover_url`：VARCHAR(255)，封面图 URL（MinIO）
+- `video_url`：VARCHAR(255)，原片 URL（MinIO，存档用，不直接播放）
+- `transcoded_url`：VARCHAR(255)，转码后视频 URL（MinIO，480P 播放地址），转码完成前为空
+- `category`：VARCHAR(50)，分类标识（模型自行设计分类体系）
+- `status`：TINYINT，默认 2（0=待审核预留，1=已发布，2=转码中）。管理员审核功能暂未实现，转码完成后自动将 `status` 设为 1（已发布），无需人工审核
+- `transcode_status`：TINYINT，默认 0（0=未开始，1=转码中，2=转码完成，3=转码失败）
+- `view_count`：BIGINT，默认 0
+- `like_count`：INT，默认 0
+- `comment_count`：INT，默认 0
+- `danmaku_count`：INT，默认 0
+- `created_at` / `updated_at`：TIMESTAMP
 
-右侧 Tab 导航
-选项：`// 资料设置 [SETTINGS]`、`// 我的视频 [ARCHIVE]`、`// 播放历史 [HISTORY]`、`// 账号安全 [SECURITY]`。
-- 未选中：暗灰 `#5a5d6e`
-- 选中：霓虹青 `#00f0ff`，底部 1px 青色实线 + `■` 方块指示器
-- 切换瞬时响应（0.1s）
+索引：`(category, status, created_at)`、`(user_id, created_at)`。
 
----
-
-Tab 1：资料设置（Settings）
-
-表单垂直排列，间距 32px：
-
-- 用户名：只读展示，等宽字体，暗灰底色输入框，禁止编辑，右侧显示 `> LOCKED` 标签。
-- 邮箱：输入框，暗背景、紫边框、聚焦发青光。前端校验邮箱格式。
-- 个性签名：多行文本域（textarea），高度 100px，边框紫，聚焦青。右下角显示 `0/200` 字数统计（等宽字体，超限变红）。
-- 保存按钮：`[ SAVE CHANGES ]`，电光紫 → hover 霓虹青，扫描线扫过。点击后显示 `> SYNCING...`，成功后显示 `> OK` 并恢复。
+> 因为只转码单档清晰度，无需独立的 `video_qualities` 多清晰度关联表，转码后的 480P（或 360P）地址直接存入 `videos.transcoded_url` 字段，简化设计。
 
 ---
 
-Tab 2：我的视频（Archive）
+二、后端 API 设计
 
-- 顶部统计栏：`TOTAL_UPLOADS: 12` `TOTAL_VIEWS: 45.2K` `PENDING: 2`，等宽字体，暗灰。
-- 视频列表：与主页 VideoCard 风格一致，增加状态标签：
-  - `[PUBLISHED]` 霓虹青边框
-  - `[PENDING]` 橙色边框（`#f0a500`）
-  - `[BANNED]` 红色边框（`#ff4757`）
-- 卡片 hover 显示操作按钮：`[ EDIT ]` `[ DELETE ]`，极简线条按钮。
-- 空状态：居中 `> NO_DATA_FOUND`，等宽字体，暗灰，下方带上传入口按钮。
+统一响应格式 `{ code, message, data }`，code=200 为成功。
+
+1. 视频上传
+- POST `/api/v1/videos`
+- Content-Type：`multipart/form-data`
+- 字段：
+  - `file`：视频文件，格式限制由模型自行合理设定（如 `mp4/mov/webm/mkv` 等），文件大小限制由模型自行判断并说明
+  - `title`：视频标题，必填，长度限制由模型合理设计
+  - `description`：视频简介，可选
+  - `category`：分类标识，必填
+  - `cover`：封面图片文件，可选。如未上传，后端调用 FFmpeg 截取视频第 5 秒画面作为默认封面，上传至 MinIO `covers/` 路径
+
+- 业务逻辑：
+  1. JWT 鉴权获取 `user_id`
+  2. 校验文件格式、大小（模型自行设定合理限制）
+  3. 生成唯一文件名（UUID），原片直接上传到 MinIO（路径如 `videos/raw/UUID.mp4`，模型自行设计合理的 MinIO 路径结构）
+  4. 封面处理：用户上传则转存 MinIO `covers/`；未上传则 FFmpeg 截取第 5 秒帧，转为 jpg/png 上传至 `covers/`
+  5. 写入 `videos` 表：`status=2`（转码中），`transcode_status=1`（转码中），记录 `video_url`（原片地址）
+  6. 向 RabbitMQ 发送转码任务消息：队列名模型自行定义（如 `video_transcode`），消息体至少包含 `video_id` 和 `input_url`（MinIO 原片可访问地址或本地临时路径，由模型自行设计）
+  7. 返回视频基本信息（id, title, cover_url, status, transcode_status, created_at）
+
+- 错误码：40001（参数错误）、40003（格式不支持）、40004（文件过大）
+
+2. 查询转码状态（前端轮询用）
+- GET `/api/v1/videos/:id/transcode`
+- 返回：`{ transcode_status, transcoded_url? }`
+- `transcode_status`：0=未开始，1=转码中，2=转码完成（此时 `transcoded_url` 有值），3=转码失败
+
+3. 视频列表
+- GET `/api/v1/videos?page=1&size=20&category=xxx&sort=new`
+- 参数：分页、分类筛选（可选）、排序（`new` 最新 / `hot` 最热）
+- 只返回 `status=1`（已发布）且 `transcode_status=2`（转码完成）的视频
+- 每条数据包含：`id, title, cover_url, category, view_count, like_count, created_at`，以及 UP 主信息 `user: {id, username, avatar}`
+
+4. 视频详情
+- GET `/api/v1/videos/:id`
+- 返回视频完整信息：含 `title, description, cover_url, video_url（原片）, transcoded_url（480P 播放地址）, user_info, view_count, like_count, created_at`
+- 业务逻辑：`view_count + 1`（直接 MySQL +1 或 Redis，个人项目建议直接 +1 简化）
+
+5. 删除视频
+- DELETE `/api/v1/videos/:id`
+- 校验：只能删除自己上传的视频
+- 业务逻辑：删除数据库记录 + 删除 MinIO 上对应文件（原片 + 转码后视频 + 封面）
 
 ---
 
-Tab 3：播放历史（History）—— 简化版
+三、FFmpeg + RabbitMQ 异步转码流程（核心）
 
-- 纵向列表，每条记录一行：
-  - 左侧：60×40 小封面（直角，16:9），边框 1px 暗灰。
-  - 中间：视频标题（冷白，hover 变青）+ 观看时间（暗灰，如 `> 3小时前`）。
-  - 右侧无操作按钮，不显示进度条，不显示百分比，无 [CONTINUE] 按钮。
-- 点击整行直接跳转到视频播放页，从 0 秒开始播放，不续播。
-- 底部：`[ CLEAR ALL HISTORY ]` 按钮，红色边框，点击后终端风格二次确认（`CONFIRM_DELETE? [Y/N]`）。
-- 空状态：`> NO_HISTORY_FOUND`。
+RabbitMQ 连接
+- 使用 Go 的 RabbitMQ 客户端库（如 `github.com/rabbitmq/amqp091-go`）
+- 连接地址从环境变量读取（`RABBITMQ_HOST` 等，与 Docker Compose 中的 RabbitMQ 服务对应）
+
+生产者（上传 API 中）
+- 视频入库后，将转码任务序列化为 JSON 发送到指定队列
+- 消息格式模型自行设计，必须包含：`video_id`（数据库 ID）、`input_path` 或 `input_url`（原片位置）
+
+消费者（后端独立启动或随服务启动）
+- 服务启动时初始化 RabbitMQ 消费者，监听转码队列
+- 消费到消息后：
+  1. 从 MinIO 下载原片到本地临时目录（或如果原片在本地则直接读取）
+  2. 调用 FFmpeg 转码为 480P（默认），如果服务器压力大则降级为 360P。只输出单档清晰度，不需要多档
+  3. FFmpeg 参考参数（480P）：`ffmpeg -i input.mp4 -vf scale=-2:480 -c:v libx264 -preset fast -crf 23 -c:a copy -movflags +faststart output_480p.mp4`
+  4. 转码完成后，将输出文件上传回 MinIO（路径如 `videos/480p/UUID_480p.mp4`，模型自行设计）
+  5. 更新数据库：`videos.transcoded_url = MinIO地址`、`transcode_status = 2`、`status = 1`
+  6. 如果转码失败，更新 `transcode_status = 3`，可记录失败原因到日志
+  7. 清理本地临时文件
+
+转码策略
+- 单档输出：仅 480P（或 360P），不生成 720P/1080P 等多档
+- 转码后的文件作为唯一播放源，原片 `video_url` 仅作存档/备用
+- 消费者需具备基本的错误处理和重试机制（至少记录日志，个人项目可先不做死信队列）
 
 ---
 
-Tab 4：账号安全（Security）
+四、前端页面设计
 
-- 修改密码区块：
-  - 标签：`> OLD_PASSWORD`、`> NEW_PASSWORD`、`> CONFIRM_PASSWORD`
-  - 三个输入框，type="password"，样式统一（暗背景、紫边框、聚焦青）
-  - 删除密码强度条，不做任何实时强度校验和可视化条。
-  - 前端只做基础校验：三框非空、新密码 6-30 位、两次新密码一致。
-  - 提交按钮：`[ UPDATE PASSWORD ]`，电光紫 → 霓虹青，扫描线扫过。
-  - 成功后自动退出登录，提示 `> TOKEN_EXPIRED // RELOGIN REQUIRED`，清空 Pinia 和 localStorage，跳登录页。
+页面一：投稿页（UploadView）
+
+延续深空科技风，标准三栏布局。
+
+上传核心区域
+- 顶部标题：`// UPLOAD_PROTOCOL // v1.0`，等宽字体霓虹青，带闪烁光标 `_`
+- 文件选择区（主要方式）：
+  - 高度 280px，边框 2px 虚线 `rgba(0,240,255,0.2)`，圆角 4px，背景极夜黑
+  - 中央显示一个明显的 `[ SELECT_FILE ]` 按钮（电光紫边框，hover 霓虹青，扫描线扫过），等宽字体
+  - 按钮下方文字：`> CLICK_TO_UPLOAD` 或 `SUPPORTED: MP4 / MOV / WEBM / MKV`，等宽字体暗灰
+  - 点击按钮唤起隐藏的 `<input type="file" accept="视频格式" />`
+- 拖拽上传（可选实现）：
+  - 如果模型判断拖拽容易实现，则支持拖拽文件到选择区
+  - 拖拽进入时：边框变实线霓虹青，外散发光阴影，背景扫描线纹理，中央文字变 `> READY_TO_UPLOAD`
+  - 如不易实现，可仅保留点击上传，不做强制要求
+- 选择文件后：显示文件信息卡片
+  - 左侧：60×40 视频缩略图占位（纯色块，按格式显示不同颜色：mp4=霓虹青、mov=电光紫、webm=极光蓝）
+  - 右侧：文件名（等宽字体，冷白）、文件大小（格式化，如 `> 124.5 MB`）、视频时长（如有，等宽字体）
+  - 右侧删除按钮：`[X]` 极小，红色，hover 故障闪烁
+
+上传进度
+- 进度条：4px 高，背景 `#14161f`，填充电光紫→霓虹青渐变，带 shimmer 斜向光条流动
+- 进度数字：等宽字体，霓虹青，`> 45.2% // 14.2MB/s`
+- 取消按钮：`[ ABORT ]`，红色边框，hover 故障闪烁
+
+转码状态（上传完成后进入此阶段）
+- 上传完成后，进度条变为青色脉冲呼吸动画（opacity 0.4 ↔ 1.0 循环）
+- 中央显示：`> TRANSCODING // 480P...`，等宽字体，霓虹青，末尾带闪烁光标
+- 下方可显示极简状态日志（终端风格，逐行打印模拟）：`[INFO] DECODING...` `[INFO] RESCALING...` `[INFO] ENCODING_H264...`，暗灰色等宽字体，当前执行行高亮为青色
+- 转码完成后：进度条闪烁一次纯青色，显示 `> TRANSCODE_COMPLETE // READY_FOR_STREAM`，1.5 秒后自动跳转视频详情页 `/video/:id`
+- 转码失败：进度条变红，显示 `> TRANSCODE_FAILED // CHECK_LOGS`，下方 `[ RETRY ]` 按钮（电光紫）
+
+视频信息表单（选择文件后显示）
+垂直排列，间距 28px：
+- 标题：标签 `> TITLE`，输入框暗背景紫边框聚焦青，占位符 `> 输入视频标题...`，字数统计 `0/200`
+- 分类选择：标签 `> CATEGORY`，分类按钮横向排列（模型自行设计分类），未选中暗灰，选中霓虹青边框+青色背景+`■` 指示器，瞬时切换 0.1s
+- 简介：标签 `> DESCRIPTION`，多行文本域 120px 高，字数统计 `0/500`
+- 封面选择：标签 `> COVER_ART`，默认 `> AUTO_GENERATE`（后端 FFmpeg 截取第 5 秒），可选上传图片，选中后显示 60px×40px 直角预览图，可 `> RESET`
+- 提交按钮：`[ EXECUTE_UPLOAD ]`，电光紫→hover 霓虹青，扫描线扫过。点击后禁用，文字变为 `> UPLOADING...` → 完成后变为 `> TRANSCODING...`
 
 ---
 
-四、前端状态与交互
+页面二：视频详情页（VideoDetailView）
 
-Pinia 用户 Store 扩展
-- `updateProfile(data)`：调 PUT `/api/v1/users/me`，成功后更新本地 `userInfo`。
-- `updateAvatar(file)`：调 POST `/api/v1/users/me/avatar`，FormData 上传，成功后更新 `userInfo.avatar`。
-- `updatePassword(oldPwd, newPwd)`：调密码接口，成功后自动 `logout()` 并跳登录页。
-- `fetchMyVideos(page)`：调我的视频接口，维护 `myVideos` 列表。
-- `fetchHistory(page)`：调播放历史接口，维护 `historyList`（只含视频信息和观看时间，无 progress）。
+标准三栏布局，主体区左右分栏（左侧 70% 播放区 + 右侧 30% 推荐列表）。
 
-头像上传交互
-- 点击头像或 `> UPLOAD` 遮罩 → 唤起隐藏 `<input type="file" accept="image/*" hidden>`。
-- 选择文件后前端先预览（FileReader base64 临时显示），同时调接口上传。
-- 上传中头像显示扫描线动画，成功后替换为返回 URL。
-- 限制 5MB，超限提示 `> ERROR: FILE_TOO_LARGE`。
+播放器区域
+- 16:9 比例，背景 `#0a0a0f`，边框 1px `rgba(0,240,255,0.1)`，圆角 4px
+- 使用原生 `<video>` 标签，播放地址使用 `transcoded_url`（480P 转码后地址）
+- 单档播放，无需清晰度切换按钮。播放器控件使用浏览器原生 controls，或模型自行设计极简自定义控件（播放/暂停/进度条/音量/全屏），风格保持科技风（青色进度条、直角按钮）
+- 加载前：显示封面图 + 中央播放按钮（40px 方形，1px 霓虹青边框，内部 `▶`，hover 填充青色）
+- 转码中/未就绪状态：如果视频 `transcode_status != 2`，播放器区域显示暗色占位，中央 `> TRANSCODING_IN_PROGRESS...`，下方显示转码状态（如 `> 480P_ENCODING // ETA: UNKNOWN`），禁止播放，自动轮询 `/api/v1/videos/:id/transcode`，转码完成后自动刷新页面或切换为可播放状态
+
+视频信息区
+- 标题：冷白 `#e4e5eb`，18px，2 行限制
+- 分类标签：如 `[GAME]`，1px 霓虹青边框，圆角 2px，等宽字体 12px
+- 数据栏：等宽字体，暗灰，`▶ 1.2W` `◆ 342` `■ 128`
+- UP 主行：六边形头像 + 用户名 + 发布时间 `> 3h ago`
+- 简介：暗灰 `#8b8fa3`，14px，最多 3 行，`> EXPAND` / `> COLLAPSE`
+
+右侧推荐列表
+- 标题：`// RELATED_ARCHIVE`，等宽字体电光紫，底部 1px 分割线
+- 纵向 5-8 条小视频卡片（与主页 VideoCard 同组件，尺寸缩小，直接复用已有组件）
+- 每条 hover 标题变霓虹青
+
+---
+
+五、前端状态与交互（Pinia 扩展）
+
+- `uploadVideo(formData)`：调 POST `/api/v1/videos`，FormData 含 file/title/description/category/cover。返回视频 ID。
+- `pollTranscodeStatus(videoId)`：轮询 GET `/api/v1/videos/:id/transcode`，每 3 秒一次，直到 `transcode_status=2`（完成）或 `3`（失败）。用于投稿页和详情页。
+- `fetchVideoDetail(id)`：调视频详情 API。
+- `deleteVideo(id)`：调删除 API。
 
 路由
-- 路径：`/personal`，命名路由 `personal`。
-- 需要登录，路由守卫拦截未登录用户跳 `/login?redirect=/personal`。
+- 投稿页：`/upload`，命名 `upload`，需登录（路由守卫拦截）
+- 视频详情页：`/video/:id`，命名 `videoDetail`
 
 ---
 
-五、视觉 checklist（与主页/登录页统一）
+六、视觉 checklist（与全站统一）
 
-- 所有输入框聚焦时边框由电光紫 `#b829dd` 变为霓虹青 `#00f0ff`，外散发光阴影
-- 所有按钮 hover 时紫变青，带扫描线从左到右扫过（伪元素 0.6s linear）
-- 标签文字使用 `>` 前缀，等宽字体，11-12px，暗灰 `#8b8fa3`
-- 选中态使用霓虹青 + `■` 方块指示器 + 底部 1px 实线
-- 卡片背景 `#0f1117`，边框 1px `rgba(255,255,255,0.06)`
-- 空状态、加载中、错误提示全部使用等宽字体终端风格文案
-- 头像、封面、按钮全部直角或 4px 小圆角，禁止大圆角
+- 文件选择区中央 `[ SELECT_FILE ]` 按钮：电光紫边框，hover 霓虹青，扫描线扫过
+- 拖拽进入时（如实现）：边框实线霓虹青 + 发光 + 扫描线背景
+- 上传进度条 4px 高，紫到青渐变，shimmer 斜向光条流动
+- 转码阶段：进度条青色呼吸脉冲，中央 `> TRANSCODING // 480P...` 带闪烁光标，下方终端风格日志逐行高亮
+- 转码完成：进度条闪烁纯青，显示 `> TRANSCODE_COMPLETE // READY_FOR_STREAM`
+- 分类选择按钮选中态：霓虹青边框 + 青色背景 + `■` 方块指示器，瞬时切换 0.1s
+- 所有输入框：暗背景、紫边框、聚焦青、等宽字体占位符带 `>` 前缀
+- 提交按钮：电光紫 → hover 霓虹青，扫描线从左到右扫过
+- 播放器区域：直角或 4px 圆角，1px 暗青边框
+- 转码中占位态：中央 `> TRANSCODING_IN_PROGRESS...`，下方 `> 480P_ENCODING // ETA: UNKNOWN`
+- 数据栏全部使用符号代替图标：`▶` `◆` `■`，等宽字体，暗灰
+- 空状态/错误/成功全部使用终端风格文案，等宽字体
+- 六边形头像、故障闪烁、扫描线、发光边框等特效延续之前组件
 - 全局禁用弹性动画，hover/切换瞬时响应或 0.1s/0.2s linear/ease
 
-请直接输出完整的、可直接运行的代码，状态管理使用 Pinia，API 调用使用已封装的 Axios 实例，与之前的主页/登录页视觉体系完全统一。代码组织方式由你自行决定。
+---
+
+七、Mock 数据（联调前）
+
+- `uploadVideo` Mock：延迟 2 秒返回视频 ID，`transcode_status=1`
+- `pollTranscodeStatus` Mock：前 3 次返回 `transcode_status=1`，第 4 次返回 `2` 并带 `transcoded_url`（可用公开测试视频地址如 `https://www.w3schools.com/html/mov_bbb.mp4`）
+- `fetchVideoDetail` Mock：返回单条视频完整数据（含 `transcoded_url`）
+
+要求 Mock 层与真实 API 接口完全一致，联调时只需替换 baseURL。
+
+---
+
+请直接输出完整的、可直接运行的前后端代码，后端使用 Go + Gin + GORM + MinIO SDK + FFmpeg + RabbitMQ，前端使用 Vue 3 + Vite + Pinia + Axios，与之前的主页/登录/个人中心视觉体系完全统一。代码组织方式由你自行决定。

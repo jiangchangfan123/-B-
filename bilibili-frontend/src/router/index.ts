@@ -16,6 +16,17 @@ const router = createRouter({
       meta: { guestOnly: true },
     },
     {
+      path: '/video/:id',
+      name: 'VideoDetail',
+      component: () => import('../views/VideoDetailView.vue'),
+    },
+    {
+      path: '/upload',
+      name: 'Upload',
+      component: () => import('../views/UploadView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/personal',
       name: 'Personal',
       component: () => import('../views/PersonalView.vue'),

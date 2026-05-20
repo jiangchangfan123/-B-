@@ -14,3 +14,18 @@ database:
 jwt:
   secret: "nebula-tv-secret-key-2026"
   expires_in: 7200
+
+minio:
+  endpoint: "8.210.190.129:9000"
+  access_key: "minio"
+  secret_key: "minio123456"
+  use_ssl: false
+  bucket_videos: "videos"
+  bucket_covers: "covers"
+
+rabbitmq:
+  host: "8.210.190.129"
+  port: "5672"
+  username: "bilibili"
+  password: "bilibili123"
+  queue: "video_transcode"

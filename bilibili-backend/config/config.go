@@ -6,9 +6,11 @@ import (
 )
 
 type Config struct {
-	Server ServerConfig `mapstructure:"server"`
-	DB     DBConfig     `mapstructure:"database"`
-	JWT    JWTConfig    `mapstructure:"jwt"`
+	Server   ServerConfig   `mapstructure:"server"`
+	DB       DBConfig       `mapstructure:"database"`
+	JWT      JWTConfig      `mapstructure:"jwt"`
+	MinIO    MinIOConfig    `mapstructure:"minio"`
+	RabbitMQ RabbitMQConfig `mapstructure:"rabbitmq"`
 }
 
 type ServerConfig struct {
@@ -29,6 +31,23 @@ type DBConfig struct {
 type JWTConfig struct {
 	Secret    string `mapstructure:"secret"`
 	ExpiresIn int    `mapstructure:"expires_in"`
+}
+
+type MinIOConfig struct {
+	Endpoint     string `mapstructure:"endpoint"`
+	AccessKey    string `mapstructure:"access_key"`
+	SecretKey    string `mapstructure:"secret_key"`
+	UseSSL       bool   `mapstructure:"use_ssl"`
+	BucketVideos string `mapstructure:"bucket_videos"`
+	BucketCovers string `mapstructure:"bucket_covers"`
+}
+
+type RabbitMQConfig struct {
+	Host     string `mapstructure:"host"`
+	Port     string `mapstructure:"port"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
+	Queue    string `mapstructure:"queue"`
 }
 
 // 全局配置变量
