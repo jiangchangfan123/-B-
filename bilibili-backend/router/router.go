@@ -6,12 +6,15 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Setup(r *gin.Engine, authCtrl *controller.AuthController, userCtrl *controller.UserController, uploadCtrl *controller.UploadController, videoCtrl *controller.VideoController, likeCtrl *controller.LikeController, favoriteCtrl *controller.FavoriteController, commentCtrl *controller.CommentController, notificationCtrl *controller.NotificationController) {
+func Setup(r *gin.Engine, authCtrl *controller.AuthController, userCtrl *controller.UserController, uploadCtrl *controller.UploadController, videoCtrl *controller.VideoController, likeCtrl *controller.LikeController, favoriteCtrl *controller.FavoriteController, commentCtrl *controller.CommentController, notificationCtrl *controller.NotificationController, danmakuCtrl *controller.DanmakuController) {
 	// 全局中间件
 	r.Use(middleware.CORS())
 
 	// 静态文件服务（头像上传目录）
 	r.Static("/uploads", "./uploads")
+
+	// WebSocket 路由
+	r.GET("/ws/danmaku", danmakuCtrl.WebSocket)
 
 	// API v1
 	apiV1 := r.Group("/api/v1")
@@ -52,6 +55,7 @@ func Setup(r *gin.Engine, authCtrl *controller.AuthController, userCtrl *control
 		{
 			videosDetail.GET("/:id", videoCtrl.Detail)
 			videosDetail.GET("/:id/comments", commentCtrl.List)
+			videosDetail.GET("/:id/danmaku", danmakuCtrl.GetDanmaku)
 		}
 		// 需登录的视频操作
 		authVideos := apiV1.Group("/videos")
@@ -65,6 +69,7 @@ func Setup(r *gin.Engine, authCtrl *controller.AuthController, userCtrl *control
 			authVideos.POST("/:id/favorite", favoriteCtrl.ToggleFavorite)
 			authVideos.GET("/:id/favorite/status", favoriteCtrl.FavoriteStatus)
 			authVideos.POST("/:id/comments", commentCtrl.Create)
+			authVideos.POST("/:id/danmaku", danmakuCtrl.SendDanmaku)
 		}
 
 		// 评论相关

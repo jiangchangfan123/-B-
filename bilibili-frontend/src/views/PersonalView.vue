@@ -2,6 +2,8 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
+import NavBar from '../components/NavBar.vue'
+import SideBar from '../components/SideBar.vue'
 import { getMyVideos, getHistory } from '../api/user'
 import { deleteVideo } from '../api/video'
 import type { MyVideoItem, HistoryItem, UpdatePasswordForm } from '../types/auth'

@@ -13,6 +13,10 @@ const props = withDefaults(defineProps<Props>(), {
   autoplay: false,
 })
 
+const emit = defineEmits<{
+  'timeupdate': [time: number]
+}>()
+
 const containerRef = ref<HTMLDivElement | null>(null)
 let dp: DPlayer | null = null
 
@@ -77,10 +81,24 @@ function initPlayer() {
     }, 5000)
   })
 
+  // 定期触发 timeupdate 事件
+  let timeTimer: ReturnType<typeof setInterval> | null = null
+  dp.on('play', () => {
+    timeTimer = setInterval(() => {
+      if (dp) {
+        emit('timeupdate', dp.video.currentTime)
+      }
+    }, 500)
+  })
+
   dp.on('pause', () => {
     if (saveTimer) {
       clearInterval(saveTimer)
       saveTimer = null
+    }
+    if (timeTimer) {
+      clearInterval(timeTimer)
+      timeTimer = null
     }
     // 暂停时立即保存
     if (dp) {
@@ -92,6 +110,10 @@ function initPlayer() {
     if (saveTimer) {
       clearInterval(saveTimer)
       saveTimer = null
+    }
+    if (timeTimer) {
+      clearInterval(timeTimer)
+      timeTimer = null
     }
     localStorage.removeItem(storageKey(props.videoId))
   })

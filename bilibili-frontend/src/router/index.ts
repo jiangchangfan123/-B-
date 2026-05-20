@@ -54,7 +54,7 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach((to) => {
   const userStore = useUserStore()
 
   // 页面刷新后从 localStorage 恢复 token
@@ -63,11 +63,10 @@ router.beforeEach((to, from, next) => {
   }
 
   if (to.meta.requiresAuth && !userStore.isLoggedIn) {
-    next({ path: '/login', query: { redirect: to.fullPath } })
-  } else if (to.meta.guestOnly && userStore.isLoggedIn) {
-    next('/')
-  } else {
-    next()
+    return { path: '/login', query: { redirect: to.fullPath } }
+  }
+  if (to.meta.guestOnly && userStore.isLoggedIn) {
+    return '/'
   }
 })
 

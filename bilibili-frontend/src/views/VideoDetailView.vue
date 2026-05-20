@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useUserStore } from '../stores/user'
 import NavBar from '../components/NavBar.vue'
 import SideBar from '../components/SideBar.vue'
 import VideoPlayer from '../components/VideoPlayer.vue'
+import DanmakuLayer from '../components/DanmakuLayer.vue'
 import { getVideoDetail, getTranscodeStatus, getVideoList, likeVideo, getLikeStatus, favoriteVideo, getFavoriteStatus } from '../api/video'
+import { sendDanmaku } from '../api/danmaku'
 import CommentSection from '../components/CommentSection.vue'
 import type { VideoDetail, VideoListItem } from '../types/video'
 
@@ -16,6 +19,12 @@ const video = ref<VideoDetail | null>(null)
 const loading = ref(true)
 const relatedVideos = ref<VideoListItem[]>([])
 const descExpanded = ref(false)
+const currentTime = ref(0)
+
+// 弹幕输入
+const danmakuInput = ref('')
+const isSendingDanmaku = ref(false)
+const danmakuLayerRef = ref<InstanceType<typeof DanmakuLayer> | null>(null)
 
 // 返回主页
 function goBack() {
@@ -56,6 +65,45 @@ function onShare() {
   navigator.clipboard.writeText(url).catch(() => {})
   // 简单 toast 提示
   showToast('链接已复制到剪贴板')
+}
+
+async function handleSendDanmaku() {
+  const text = danmakuInput.value.trim()
+  if (!text) return
+  if (isSendingDanmaku.value) return
+
+  // 检查登录状态
+  const userStore = useUserStore()
+  if (!userStore.isLoggedIn) {
+    showToast('请先登录后再发送弹幕')
+    setTimeout(() => router.push('/login'), 1500)
+    return
+  }
+
+  isSendingDanmaku.value = true
+  try {
+    const timePoint = Math.floor(currentTime.value)
+    const res = await sendDanmaku(videoId, {
+      content: text,
+      time_point: timePoint,
+    })
+
+    // 通知弹幕层立即显示
+    danmakuLayerRef.value?.addDanmaku(res.danmaku)
+    danmakuInput.value = ''
+    showToast('弹幕发送成功')
+  } catch (err: any) {
+    console.error('[Danmaku] 发送失败:', err)
+    const msg = err?.message || ''
+    if (msg.includes('登录') || msg.includes('Token') || msg.includes('token')) {
+      showToast('登录已过期，请重新登录')
+      setTimeout(() => router.push('/login'), 1500)
+    } else {
+      showToast('弹幕发送失败: ' + (msg || '请检查网络'))
+    }
+  } finally {
+    isSendingDanmaku.value = false
+  }
 }
 
 const toastMsg = ref('')
@@ -217,12 +265,38 @@ function getFullUrl(url: string): string {
               </div>
             </div>
 
-            <VideoPlayer
-              v-else
-              :video-url="getFullUrl(video.transcoded_url || video.video_url)"
-              :cover-url="getFullUrl(video.cover_url)"
-              :video-id="video.id"
+            <template v-else>
+              <DanmakuLayer
+                ref="danmakuLayerRef"
+                :video-id="video.id"
+                :current-time="currentTime"
+              />
+              <VideoPlayer
+                :video-url="getFullUrl(video.transcoded_url || video.video_url)"
+                :cover-url="getFullUrl(video.cover_url)"
+                :video-id="video.id"
+                @timeupdate="currentTime = $event"
+              />
+            </template>
+          </div>
+
+          <!-- 弹幕输入框 -->
+          <div class="danmaku-send-bar">
+            <input
+              v-model="danmakuInput"
+              type="text"
+              class="danmaku-send-input"
+              placeholder="发一条友好的弹幕吧~"
+              maxlength="100"
+              @keyup.enter="handleSendDanmaku"
             />
+            <button
+              class="danmaku-send-action"
+              :disabled="isSendingDanmaku || !danmakuInput.trim()"
+              @click="handleSendDanmaku"
+            >
+              {{ isSendingDanmaku ? '发送中...' : '发射弹幕' }}
+            </button>
           </div>
 
           <!-- 视频信息 -->
@@ -469,6 +543,62 @@ function getFullUrl(url: string): string {
   height: 100%;
   object-fit: contain;
   background: #0a0a0f;
+}
+
+/* 弹幕发送栏 */
+.danmaku-send-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: #0f1117;
+  border: 1px solid rgba(0, 240, 255, 0.1);
+  border-radius: 4px;
+}
+
+.danmaku-send-input {
+  flex: 1;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  border-radius: 4px;
+  background: #0a0a0f;
+  color: #e4e5eb;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.danmaku-send-input::placeholder {
+  color: #5a5d6e;
+}
+
+.danmaku-send-input:focus {
+  border-color: rgba(0, 240, 255, 0.5);
+}
+
+.danmaku-send-action {
+  height: 34px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(0, 240, 255, 0.15);
+  color: #00f0ff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.danmaku-send-action:hover:not(:disabled) {
+  background: rgba(0, 240, 255, 0.25);
+}
+
+.danmaku-send-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* 视频信息 */
