@@ -1,14 +1,49 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import type { MenuItem } from '../types/home'
 import { menuList, systemMenuList } from '../mock/homeData'
 
-const menus = ref<MenuItem[]>(menuList)
-const systemMenus = ref<MenuItem[]>(systemMenuList)
+const route = useRoute()
+const router = useRouter()
+
+const menus = ref<MenuItem[]>(menuList.map(m => ({ ...m, active: false })))
+const systemMenus = ref<MenuItem[]>(systemMenuList.map(m => ({ ...m, active: false })))
 const expanded = ref(false)
 
-function setActive(id: string) {
-  menus.value = menus.value.map((m) => ({ ...m, active: m.id === id }))
+// 路由与菜单映射
+const routeMap: Record<string, string> = {
+  home: '/',
+  favorites: '/favorites',
+  feed: '/feed',
+  hot: '/hot',
+  channel: '/channel',
+  partition: '/partition',
+  settings: '/personal',
+  theme: '/theme',
+}
+
+// 根据当前路由同步 active 状态
+function syncActiveFromRoute() {
+  const path = route.path
+  menus.value = menus.value.map(m => ({
+    ...m,
+    active: routeMap[m.id] === path || (m.id === 'home' && path === '/'),
+  }))
+  systemMenus.value = systemMenus.value.map(m => ({
+    ...m,
+    active: routeMap[m.id] === path,
+  }))
+}
+
+syncActiveFromRoute()
+watch(() => route.path, syncActiveFromRoute)
+
+function onMenuClick(id: string) {
+  const target = routeMap[id]
+  if (target) {
+    router.push(target)
+  }
 }
 
 function toggleExpand() {
@@ -25,7 +60,7 @@ function toggleExpand() {
         :key="item.id"
         class="sidebar__item"
         :class="{ 'sidebar__item--active': item.active }"
-        @click="setActive(item.id)"
+        @click="onMenuClick(item.id)"
       >
         <svg
           class="sidebar__icon"
@@ -65,7 +100,7 @@ function toggleExpand() {
         :key="item.id"
         class="sidebar__item sidebar__item--system"
         :class="{ 'sidebar__item--active': item.active }"
-        @click="setActive(item.id)"
+        @click="onMenuClick(item.id)"
       >
         <svg
           class="sidebar__icon"

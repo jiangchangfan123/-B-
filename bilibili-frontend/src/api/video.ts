@@ -6,7 +6,14 @@ import type {
   VideoDetail,
 } from '../types/video'
 
-// ========== Mock 开关 ==========
+/** 更新视频 */
+export async function updateVideo(id: number, formData: FormData): Promise<void> {
+  return request.put(`/videos/${id}`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+}
 const USE_MOCK = false
 
 let mockPollCount = 0
@@ -88,7 +95,30 @@ export async function deleteVideo(id: number): Promise<void> {
   return request.delete(`/videos/${id}`)
 }
 
-// ========== Mock 辅助函数 ==========
+/** 点赞/取消点赞 */
+export async function likeVideo(id: number): Promise<{ liked: boolean; count: number }> {
+  return request.post(`/videos/${id}/like`)
+}
+
+/** 查询点赞状态 */
+export async function getLikeStatus(id: number): Promise<{ liked: boolean; count: number }> {
+  return request.get(`/videos/${id}/like/status`)
+}
+
+/** 收藏/取消收藏 */
+export async function favoriteVideo(id: number): Promise<{ favorited: boolean }> {
+  return request.post(`/videos/${id}/favorite`)
+}
+
+/** 查询收藏状态 */
+export async function getFavoriteStatus(id: number): Promise<{ favorited: boolean }> {
+  return request.get(`/videos/${id}/favorite/status`)
+}
+
+/** 我的收藏列表 */
+export async function getFavorites(page = 1, size = 20): Promise<VideoListResponse> {
+  return request.get(`/users/me/favorites?page=${page}&size=${size}`)
+}
 function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }

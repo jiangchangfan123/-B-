@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
+	"time"
 
 	"bilibili-backend/config"
 	"bilibili-backend/consumer"
@@ -37,7 +38,7 @@ func main() {
 	}
 
 	// 自动迁移
-	if err := db.AutoMigrate(&model.User{}, &model.Video{}, &model.VideoHistory{}); err != nil {
+	if err := db.AutoMigrate(&model.User{}, &model.Video{}, &model.VideoHistory{}, &model.VideoLike{}, &model.VideoFavorite{}); err != nil {
 		log.Fatalf("迁移失败: %v", err)
 	}
 
@@ -56,6 +57,12 @@ func main() {
 		go consumer.StartTranscodeConsumer(db)
 	}
 
+	// Redis 初始化
+	if err := utils.InitRedis(); err != nil {
+		log.Printf("[WARN] Redis 初始化失败: %v", err)
+		log.Println("[WARN] 点赞/收藏缓存功能将不可用")
+	}
+
 	// FFmpeg 环境检查
 	if _, err := exec.LookPath("ffmpeg"); err != nil {
 		log.Println("[WARN] FFmpeg 未安装，视频转码和封面截取功能将不可用")
@@ -66,25 +73,43 @@ func main() {
 	// DAO
 	userDao := dao.NewUserDao(db)
 	videoDao := dao.NewVideoDao(db)
-	_ = dao.NewHistoryDao(db)
+	historyDao := dao.NewHistoryDao(db)
+	likeDao := dao.NewLikeDao(db)
+	favoriteDao := dao.NewFavoriteDao(db)
 
 	// Service
 	authService := service.NewAuthService(userDao)
 	userService := service.NewUserService(userDao)
 	videoService := service.NewVideoService(videoDao, userDao)
+	historyService := service.NewHistoryService(historyDao)
+	likeService := service.NewLikeService(likeDao, videoDao)
+	favoriteService := service.NewFavoriteService(favoriteDao)
 
 	// Controller
 	authCtrl := controller.NewAuthController(authService)
-	userCtrl := controller.NewUserController(userService)
+	userCtrl := controller.NewUserController(userService, videoService, historyService)
 	uploadCtrl := controller.NewUploadController(userService)
-	videoCtrl := controller.NewVideoController(videoService, userService)
+	videoCtrl := controller.NewVideoController(videoService, userService, historyService)
+	likeCtrl := controller.NewLikeController(likeService)
+	favoriteCtrl := controller.NewFavoriteController(favoriteService)
+
+	// 启动点赞同步定时任务（每 30 秒同步一次）
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			if err := likeService.SyncLikesToDB(); err != nil {
+				log.Printf("[WARN] 点赞同步失败: %v", err)
+			}
+		}
+	}()
 
 	// Gin
 	gin.SetMode(config.C.Server.Mode)
 	r := gin.Default()
 	r.Use(middleware.CORS())
 
-	router.Setup(r, authCtrl, userCtrl, uploadCtrl, videoCtrl)
+	router.Setup(r, authCtrl, userCtrl, uploadCtrl, videoCtrl, likeCtrl, favoriteCtrl)
 
 	addr := ":" + config.C.Server.Port
 	fmt.Println("🚀 Server running on http://localhost" + addr)

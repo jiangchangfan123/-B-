@@ -40,6 +40,18 @@ func (s *VideoService) UploadVideo(userID uint64, title, description, category s
 		return nil, fmt.Errorf("save video failed: %w", err)
 	}
 
+	// 提取视频时长（秒）
+	var duration int64
+	if _, err := exec.LookPath("ffprobe"); err == nil {
+		cmd := exec.Command("ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", videoTmpPath)
+		out, err := cmd.Output()
+		if err == nil {
+			var d float64
+			fmt.Sscanf(strings.TrimSpace(string(out)), "%f", &d)
+			duration = int64(d)
+		}
+	}
+
 	// 上传原片到 MinIO
 	minioVideoKey := fmt.Sprintf("videos/raw/%s/original%s", videoIDStr, videoExt)
 	if err := utils.MinIOUploadFile(context.Background(), config.C.MinIO.BucketVideos, minioVideoKey, videoTmpPath, "video/mp4"); err != nil {
@@ -81,6 +93,7 @@ func (s *VideoService) UploadVideo(userID uint64, title, description, category s
 		Description:     description,
 		CoverURL:        coverURL,
 		VideoURL:        videoURL,
+		Duration:        duration,
 		Category:        category,
 		Status:          2, // 转码中
 		TranscodeStatus: 1, // 转码中
@@ -169,6 +182,82 @@ func (s *VideoService) UpdateTranscodeResult(videoID uint64, transcodedURL strin
 		return s.videoDao.UpdateTranscodeStatus(videoID, 2, transcodedURL, 1)
 	}
 	return s.videoDao.UpdateTranscodeStatus(videoID, 3, "", 2)
+}
+
+// UpdateVideo 更新视频信息（标题/简介/分类/封面/视频文件）
+func (s *VideoService) UpdateVideo(userID, videoID uint64, title, description, category string, videoFile, coverFile io.Reader, videoExt, coverExt string) error {
+	video, err := s.videoDao.GetByID(videoID)
+	if err != nil {
+		return err
+	}
+	if video.UserID != userID {
+		return fmt.Errorf("not owner")
+	}
+
+	// 更新基本字段
+	video.Title = title
+	video.Description = description
+	video.Category = category
+
+	videoIDStr := uuid.New().String()
+	tmpDir := filepath.Join(os.TempDir(), "uploads", videoIDStr)
+	os.MkdirAll(tmpDir, 0755)
+	defer os.RemoveAll(tmpDir)
+
+	// 处理新封面
+	if coverFile != nil && coverExt != "" {
+		coverTmpPath := filepath.Join(tmpDir, "cover"+coverExt)
+		if err := saveReaderToFile(coverFile, coverTmpPath); err == nil {
+			minioCoverKey := fmt.Sprintf("covers/%s%s", videoIDStr, coverExt)
+			if err := utils.MinIOUploadFile(context.Background(), config.C.MinIO.BucketCovers, minioCoverKey, coverTmpPath, "image/jpeg"); err == nil {
+				video.CoverURL = utils.MinIOGetURL(context.Background(), config.C.MinIO.BucketCovers, minioCoverKey)
+			}
+		}
+	}
+
+	// 处理新视频文件
+	if videoFile != nil && videoExt != "" {
+		videoTmpPath := filepath.Join(tmpDir, "original"+videoExt)
+		if err := saveReaderToFile(videoFile, videoTmpPath); err != nil {
+			return fmt.Errorf("save video failed: %w", err)
+		}
+
+		// 重新提取时长
+		if _, err := exec.LookPath("ffprobe"); err == nil {
+			cmd := exec.Command("ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", videoTmpPath)
+			out, err := cmd.Output()
+			if err == nil {
+				var d float64
+				fmt.Sscanf(strings.TrimSpace(string(out)), "%f", &d)
+				video.Duration = int64(d)
+			}
+		}
+
+		// 上传新视频
+		minioVideoKey := fmt.Sprintf("videos/raw/%s/original%s", videoIDStr, videoExt)
+		if err := utils.MinIOUploadFile(context.Background(), config.C.MinIO.BucketVideos, minioVideoKey, videoTmpPath, "video/mp4"); err != nil {
+			return fmt.Errorf("upload video to minio failed: %w", err)
+		}
+		video.VideoURL = utils.MinIOGetURL(context.Background(), config.C.MinIO.BucketVideos, minioVideoKey)
+
+		// 重置转码状态
+		video.Status = 2
+		video.TranscodeStatus = 1
+		video.TranscodedURL = ""
+
+		// 发送新的转码任务
+		transcodeMsg := utils.TranscodeMessage{
+			VideoID:   video.ID,
+			InputURL:  video.VideoURL,
+			Bucket:    config.C.MinIO.BucketVideos,
+			ObjectKey: fmt.Sprintf("videos/480p/%s_480p.mp4", videoIDStr),
+		}
+		if err := utils.PublishTranscodeTask(transcodeMsg); err != nil {
+			fmt.Printf("[WARN] publish transcode task failed: %v\n", err)
+		}
+	}
+
+	return s.videoDao.Update(video)
 }
 
 // 辅助函数

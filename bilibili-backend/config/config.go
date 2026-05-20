@@ -11,6 +11,7 @@ type Config struct {
 	JWT      JWTConfig      `mapstructure:"jwt"`
 	MinIO    MinIOConfig    `mapstructure:"minio"`
 	RabbitMQ RabbitMQConfig `mapstructure:"rabbitmq"`
+	Redis    RedisConfig    `mapstructure:"redis"`
 }
 
 type ServerConfig struct {
@@ -48,6 +49,13 @@ type RabbitMQConfig struct {
 	Username string `mapstructure:"username"`
 	Password string `mapstructure:"password"`
 	Queue    string `mapstructure:"queue"`
+}
+
+type RedisConfig struct {
+	Host     string `mapstructure:"host"`
+	Port     string `mapstructure:"port"`
+	Password string `mapstructure:"password"`
+	DB       int    `mapstructure:"db"`
 }
 
 // 全局配置变量

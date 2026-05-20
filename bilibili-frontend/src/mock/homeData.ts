@@ -154,6 +154,12 @@ export const menuList: MenuItem[] = [
     active: true,
   },
   {
+    id: 'favorites',
+    label: '收藏',
+    icon: 'M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z',
+    active: false,
+  },
+  {
     id: 'feed',
     label: '动态',
     icon: 'M13 10V3L4 14h7v7l9-11h-7z',

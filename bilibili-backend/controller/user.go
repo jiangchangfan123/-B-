@@ -10,11 +10,13 @@ import (
 )
 
 type UserController struct {
-	userService *service.UserService
+	userService    *service.UserService
+	videoService   *service.VideoService
+	historyService *service.HistoryService
 }
 
-func NewUserController(userService *service.UserService) *UserController {
-	return &UserController{userService: userService}
+func NewUserController(userService *service.UserService, videoService *service.VideoService, historyService *service.HistoryService) *UserController {
+	return &UserController{userService: userService, videoService: videoService, historyService: historyService}
 }
 
 // 获取当前用户信息 GET /api/v1/users/me
@@ -100,6 +102,9 @@ func (ctrl *UserController) UpdatePassword(c *gin.Context) {
 
 // 获取我的视频 GET /api/v1/users/me/videos
 func (ctrl *UserController) MyVideos(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	uid := userID.(uint64)
+
 	pageStr := c.DefaultQuery("page", "1")
 	sizeStr := c.DefaultQuery("size", "20")
 	page, _ := strconv.Atoi(pageStr)
@@ -111,16 +116,27 @@ func (ctrl *UserController) MyVideos(c *gin.Context) {
 		size = 20
 	}
 
-	// Mock 视频数据（视频功能尚未实现）
-	mockVideos := []gin.H{
-		{"id": 1, "title": "深空漫步者 // 第一章", "cover_url": "", "views": 3420, "status": 1, "category": "科幻", "created_at": time.Now().Add(-24 * time.Hour).Format(time.RFC3339)},
-		{"id": 2, "title": "虚空协议 // 实验记录", "cover_url": "", "views": 1280, "status": 2, "category": "技术", "created_at": time.Now().Add(-72 * time.Hour).Format(time.RFC3339)},
-		{"id": 3, "title": "星际通信 // 第三节", "cover_url": "", "views": 8900, "status": 1, "category": "游戏", "created_at": time.Now().Add(-168 * time.Hour).Format(time.RFC3339)},
+	videos, total, err := ctrl.videoService.ListMyVideos(uid, page, size)
+	if err != nil {
+		utils.Error(c, utils.CodeBadRequest)
+		return
 	}
 
-	total := int64(len(mockVideos))
+	list := make([]gin.H, 0, len(videos))
+	for _, v := range videos {
+		list = append(list, gin.H{
+			"id":         v.ID,
+			"title":      v.Title,
+			"cover_url":  v.CoverURL,
+			"views":      v.ViewCount,
+			"status":     v.Status,
+			"category":   v.Category,
+			"created_at": v.CreatedAt,
+		})
+	}
+
 	utils.OK(c, gin.H{
-		"list":  mockVideos,
+		"list":  list,
 		"total": total,
 		"page":  page,
 		"size":  size,
@@ -129,6 +145,9 @@ func (ctrl *UserController) MyVideos(c *gin.Context) {
 
 // 获取播放历史 GET /api/v1/users/me/history
 func (ctrl *UserController) History(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	uid := userID.(uint64)
+
 	pageStr := c.DefaultQuery("page", "1")
 	sizeStr := c.DefaultQuery("size", "20")
 	page, _ := strconv.Atoi(pageStr)
@@ -140,16 +159,14 @@ func (ctrl *UserController) History(c *gin.Context) {
 		size = 20
 	}
 
-	// Mock 播放历史（历史功能尚未实现）
-	mockHistory := []gin.H{
-		{"id": 1, "title": "深空漫步者 // 第一章", "cover_url": "", "views": 3420, "watched_at": time.Now().Add(-2 * time.Hour).Format(time.RFC3339)},
-		{"id": 2, "title": "虚空协议 // 实验记录", "cover_url": "", "views": 1280, "watched_at": time.Now().Add(-5 * time.Hour).Format(time.RFC3339)},
-		{"id": 4, "title": "星际旅行 // 红巨星探索", "cover_url": "", "views": 5600, "watched_at": time.Now().Add(-24 * time.Hour).Format(time.RFC3339)},
+	list, total, err := ctrl.historyService.ListByUserID(uid, page, size)
+	if err != nil {
+		utils.Error(c, utils.CodeBadRequest)
+		return
 	}
 
-	total := int64(len(mockHistory))
 	utils.OK(c, gin.H{
-		"list":  mockHistory,
+		"list":  list,
 		"total": total,
 		"page":  page,
 		"size":  size,

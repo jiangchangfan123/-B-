@@ -1,14 +1,31 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import NavBar from '../components/NavBar.vue'
 import SideBar from '../components/SideBar.vue'
-import { uploadVideo, getTranscodeStatus } from '../api/video'
+import { uploadVideo, getTranscodeStatus, getVideoDetail, updateVideo } from '../api/video'
 import { videoCategories } from '../types/video'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
+
+// URL 拼接
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'
+const SERVER_BASE = API_BASE.replace(/\/api\/v1\/?$/, '')
+function getFullUrl(url: string): string {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  return SERVER_BASE + url
+}
+
+// 编辑模式
+const editVideoId = computed(() => {
+  const id = route.params.id
+  return id ? Number(id) : 0
+})
+const isEditMode = computed(() => editVideoId.value > 0)
 
 // ========== 状态 ==========
 const selectedFile = ref<File | null>(null)
@@ -145,12 +162,38 @@ let progressTimer: ReturnType<typeof setInterval> | null = null
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
 async function onSubmit() {
-  if (!selectedFile.value) {
+  if (!isEditMode.value && !selectedFile.value) {
     alert('> ERROR: 请选择视频文件')
     return
   }
   if (!form.title.trim()) {
     alert('> ERROR: 请输入标题')
+    return
+  }
+
+  // 编辑模式：直接提交更新
+  if (isEditMode.value) {
+    const formData = new FormData()
+    formData.append('title', form.title)
+    formData.append('description', form.description)
+    formData.append('category', form.category)
+    if (selectedFile.value) {
+      formData.append('video', selectedFile.value)
+    }
+    if (selectedCover.value) {
+      formData.append('cover', selectedCover.value)
+    }
+    try {
+      uploadState.value = 'uploading'
+      await updateVideo(editVideoId.value, formData)
+      uploadState.value = 'done'
+      setTimeout(() => {
+        router.push('/personal')
+      }, 1500)
+    } catch (err: any) {
+      uploadState.value = 'error'
+      alert(err.message || '> ERROR: 更新失败')
+    }
     return
   }
 
@@ -231,9 +274,25 @@ function startTranscodePolling(id: number) {
   }, 3000)
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (!userStore.isLoggedIn) {
     router.push('/login?redirect=/upload')
+    return
+  }
+  // 编辑模式：加载原视频数据
+  if (isEditMode.value) {
+    try {
+      const video = await getVideoDetail(editVideoId.value)
+      form.title = video.title
+      form.description = video.description
+      form.category = video.category
+      if (video.cover_url) {
+        coverPreview.value = getFullUrl(video.cover_url)
+      }
+    } catch {
+      alert('加载视频信息失败')
+      router.push('/personal')
+    }
   }
 })
 
@@ -253,7 +312,7 @@ onUnmounted(() => {
         <!-- 顶部标题 -->
         <div class="upload-header">
           <h1 class="upload-title"
-            >// UPLOAD_PROTOCOL // v1.0</h1>
+            >// {{ isEditMode ? 'EDIT_PROTOCOL' : 'UPLOAD_PROTOCOL' }} // v1.0</h1>
         </div>
 
         <!-- 文件选择区 -->
@@ -271,7 +330,7 @@ onUnmounted(() => {
             <button class="select-btn" @click.stop="onSelectClick"
               >[ SELECT_FILE ]</button>
             <p class="drop-zone__text"
-              >{{ isDragging ? '> READY_TO_UPLOAD' : '> CLICK_TO_UPLOAD' }}</p>
+              >{{ isDragging ? '> READY_TO_UPLOAD' : (isEditMode ? '> CLICK_TO_REPLACE_VIDEO (OPTIONAL)' : '> CLICK_TO_UPLOAD') }}</p>
             <p class="drop-zone__hint"
               >SUPPORTED: MP4 / MOV / WEBM / MKV</p>
           </div>
@@ -418,7 +477,7 @@ onUnmounted(() => {
               >> DONE</span>
             <span v-else-if="uploadState === 'error'"
               >> RETRY</span>
-            <span v-else>[ EXECUTE_UPLOAD ]</span>
+            <span v-else>[ {{ isEditMode ? 'EXECUTE_UPDATE' : 'EXECUTE_UPLOAD' }} ]</span>
           </button>
         </div>
       </div>

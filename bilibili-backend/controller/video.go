@@ -12,12 +12,13 @@ import (
 )
 
 type VideoController struct {
-	videoService *service.VideoService
-	userService  *service.UserService
+	videoService   *service.VideoService
+	userService    *service.UserService
+	historyService *service.HistoryService
 }
 
-func NewVideoController(videoService *service.VideoService, userService *service.UserService) *VideoController {
-	return &VideoController{videoService: videoService, userService: userService}
+func NewVideoController(videoService *service.VideoService, userService *service.UserService, historyService *service.HistoryService) *VideoController {
+	return &VideoController{videoService: videoService, userService: userService, historyService: historyService}
 }
 
 // Upload 视频上传 POST /api/v1/videos
@@ -151,6 +152,7 @@ func (ctrl *VideoController) List(c *gin.Context) {
 			"id":         v.ID,
 			"title":      v.Title,
 			"cover_url":  v.CoverURL,
+			"duration":   v.Duration,
 			"category":   v.Category,
 			"view_count": v.ViewCount,
 			"like_count": v.LikeCount,
@@ -185,6 +187,12 @@ func (ctrl *VideoController) Detail(c *gin.Context) {
 	// 播放量 +1
 	_ = ctrl.videoService.IncrementView(id)
 
+	// 记录播放历史（如果已登录）
+	if userID, exists := c.Get("user_id"); exists {
+		uid := userID.(uint64)
+		_ = ctrl.historyService.RecordHistory(uid, id)
+	}
+
 	// UP 主信息
 	user, _ := ctrl.userService.GetUserByID(video.UserID)
 	userInfo := gin.H{}
@@ -204,6 +212,7 @@ func (ctrl *VideoController) Detail(c *gin.Context) {
 		"cover_url":        video.CoverURL,
 		"video_url":        video.VideoURL,
 		"transcoded_url":   video.TranscodedURL,
+		"duration":         video.Duration,
 		"category":         video.Category,
 		"status":           video.Status,
 		"transcode_status": video.TranscodeStatus,
@@ -231,5 +240,54 @@ func (ctrl *VideoController) Delete(c *gin.Context) {
 		utils.Error(c, utils.CodeBadRequest)
 		return
 	}
+	utils.OK(c, nil)
+}
+
+// Update 更新视频 PUT /api/v1/videos/:id
+func (ctrl *VideoController) Update(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	uid := userID.(uint64)
+
+	idStr := c.Param("id")
+	videoID, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		utils.Error(c, utils.CodeBadRequest)
+		return
+	}
+
+	title := c.PostForm("title")
+	description := c.PostForm("description")
+	category := c.PostForm("category")
+
+	if title == "" || len(title) > 200 {
+		utils.Error(c, utils.CodeBadRequest)
+		return
+	}
+
+	// 可选的视频文件
+	var videoFile io.Reader
+	var videoExt string
+	file, header, err := c.Request.FormFile("video")
+	if err == nil && header != nil {
+		videoFile = file
+		videoExt = filepath.Ext(header.Filename)
+		defer file.Close()
+	}
+
+	// 可选的封面
+	var coverFile io.Reader
+	var coverExt string
+	cover, coverHeader, err := c.Request.FormFile("cover")
+	if err == nil && coverHeader != nil {
+		coverFile = cover
+		coverExt = filepath.Ext(coverHeader.Filename)
+		defer cover.Close()
+	}
+
+	if err := ctrl.videoService.UpdateVideo(uid, videoID, title, description, category, videoFile, coverFile, videoExt, coverExt); err != nil {
+		utils.Error(c, utils.CodeBadRequest)
+		return
+	}
+
 	utils.OK(c, nil)
 }

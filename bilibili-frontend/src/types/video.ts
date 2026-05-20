@@ -32,6 +32,7 @@ export interface VideoListItem {
   id: number
   title: string
   cover_url: string
+  duration?: number       // 视频时长（秒）
   category: string
   view_count: number
   like_count: number
@@ -60,6 +61,7 @@ export interface VideoDetail {
   cover_url: string
   video_url: string
   transcoded_url: string
+  duration?: number       // 视频时长（秒）
   category: string
   status: number
   transcode_status: number

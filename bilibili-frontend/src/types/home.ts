@@ -27,7 +27,8 @@ export interface UploaderInfo {
 export interface VideoItem {
   id: number
   title: string
-  coverGradient: string[] // 封面渐变色
+  cover_url?: string      // 真实封面图片 URL
+  coverGradient: string[] // 封面渐变色（fallback）
   duration: string        // 如 "14:02"
   uploader: UploaderInfo
   views: number

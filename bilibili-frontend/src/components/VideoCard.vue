@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
 import type { VideoItem } from '../types/home'
 import { formatNumber } from '../mock/homeData'
 
@@ -11,6 +12,12 @@ const props = withDefaults(defineProps<Props>(), {
   size: 'normal',
 })
 
+const router = useRouter()
+
+function goToVideo() {
+  router.push(`/video/${props.video.id}`)
+}
+
 function coverStyle(colors: string[]) {
   return {
     background: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 100%)`,
@@ -19,10 +26,22 @@ function coverStyle(colors: string[]) {
 </script>
 
 <template>
-  <div class="video-card" :class="{ 'video-card--small': props.size === 'small' }">
+  <div class="video-card" :class="{ 'video-card--small': props.size === 'small' }" @click="goToVideo">
     <!-- 封面区 -->
     <div class="video-card__cover">
-      <div class="video-card__cover-img" :style="coverStyle(props.video.coverGradient)">
+      <!-- 真实封面图 -->
+      <img
+        v-if="props.video.cover_url"
+        :src="props.video.cover_url"
+        class="video-card__cover-img video-card__cover-img--real"
+        alt="cover"
+      />
+      <!-- 渐变色 fallback -->
+      <div
+        v-else
+        class="video-card__cover-img"
+        :style="coverStyle(props.video.coverGradient)"
+      >
         <div class="video-card__cover-pattern" />
       </div>
       <div class="video-card__duration">{{ props.video.duration }}</div>
@@ -100,6 +119,12 @@ function coverStyle(colors: string[]) {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.video-card__cover-img--real {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
 }
 
 .video-card__cover-pattern {

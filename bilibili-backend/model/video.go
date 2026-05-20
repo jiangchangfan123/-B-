@@ -9,6 +9,7 @@ type Video struct {
 	CoverURL        string `gorm:"type:varchar(255)" json:"cover_url"`
 	VideoURL        string `gorm:"type:varchar(255)" json:"video_url"`
 	TranscodedURL   string `gorm:"type:varchar(255)" json:"transcoded_url"`
+	Duration        int64  `gorm:"default:0" json:"duration"` // 视频时长（秒）
 	Category        string `gorm:"type:varchar(50);index:idx_cat_status_created,priority:1" json:"category"`
 	Status          int    `gorm:"type:tinyint;default:2;index:idx_cat_status_created,priority:2" json:"status"` // 1=已发布 2=转码中
 	TranscodeStatus int    `gorm:"type:tinyint;default:0" json:"transcode_status"`                               // 0=未开始 1=转码中 2=转码完成 3=转码失败

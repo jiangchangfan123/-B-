@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Setup(r *gin.Engine, authCtrl *controller.AuthController, userCtrl *controller.UserController, uploadCtrl *controller.UploadController, videoCtrl *controller.VideoController) {
+func Setup(r *gin.Engine, authCtrl *controller.AuthController, userCtrl *controller.UserController, uploadCtrl *controller.UploadController, videoCtrl *controller.VideoController, likeCtrl *controller.LikeController, favoriteCtrl *controller.FavoriteController) {
 	// 全局中间件
 	r.Use(middleware.CORS())
 
@@ -39,8 +39,13 @@ func Setup(r *gin.Engine, authCtrl *controller.AuthController, userCtrl *control
 		videos := apiV1.Group("/videos")
 		{
 			videos.GET("", videoCtrl.List)
-			videos.GET("/:id", videoCtrl.Detail)
 			videos.GET("/:id/transcode", videoCtrl.TranscodeStatus)
+		}
+		// 视频详情（可选认证，已登录用户记录播放历史）
+		videosDetail := apiV1.Group("/videos")
+		videosDetail.Use(middleware.OptionalAuth())
+		{
+			videosDetail.GET("/:id", videoCtrl.Detail)
 		}
 		// 需登录的视频操作
 		authVideos := apiV1.Group("/videos")
@@ -48,6 +53,14 @@ func Setup(r *gin.Engine, authCtrl *controller.AuthController, userCtrl *control
 		{
 			authVideos.POST("", videoCtrl.Upload)
 			authVideos.DELETE("/:id", videoCtrl.Delete)
+			authVideos.PUT("/:id", videoCtrl.Update)
+			authVideos.POST("/:id/like", likeCtrl.ToggleLike)
+			authVideos.GET("/:id/like/status", likeCtrl.LikeStatus)
+			authVideos.POST("/:id/favorite", favoriteCtrl.ToggleFavorite)
+			authVideos.GET("/:id/favorite/status", favoriteCtrl.FavoriteStatus)
 		}
+
+		// 收藏列表
+		users.GET("/me/favorites", favoriteCtrl.ListFavorites)
 	}
 }

@@ -27,9 +27,21 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/upload/:id',
+      name: 'UploadEdit',
+      component: () => import('../views/UploadView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/personal',
       name: 'Personal',
       component: () => import('../views/PersonalView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/favorites',
+      name: 'Favorites',
+      component: () => import('../views/FavoritesView.vue'),
       meta: { requiresAuth: true },
     },
   ],

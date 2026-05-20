@@ -86,3 +86,13 @@ func (d *VideoDao) UpdateTranscodeStatus(id uint64, transcodeStatus int, transco
 func (d *VideoDao) IncrementViewCount(id uint64) error {
 	return d.db.Model(&model.Video{}).Where("id = ?", id).UpdateColumn("view_count", gorm.Expr("view_count + 1")).Error
 }
+
+// UpdateLikeCount 更新点赞数
+func (d *VideoDao) UpdateLikeCount(id uint64, count int) error {
+	return d.db.Model(&model.Video{}).Where("id = ?", id).UpdateColumn("like_count", count).Error
+}
+
+// Update 更新视频字段
+func (d *VideoDao) Update(video *model.Video) error {
+	return d.db.Save(video).Error
+}

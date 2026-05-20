@@ -3,6 +3,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { getMyVideos, getHistory } from '../api/user'
+import { deleteVideo } from '../api/video'
 import type { MyVideoItem, HistoryItem, UpdatePasswordForm } from '../types/auth'
 
 const router = useRouter()
@@ -24,6 +25,12 @@ function getFullAvatarUrl(avatar: string | undefined): string {
   if (!avatar) return ''
   if (avatar.startsWith('http')) return avatar
   return SERVER_BASE + avatar
+}
+
+function getFullUrl(url: string | undefined): string {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  return SERVER_BASE + url
 }
 
 const avatarUrl = computed(() => getFullAvatarUrl(userStore.userInfo?.avatar))
@@ -118,6 +125,17 @@ async function loadVideos() {
     videoTotal.value = res.total
   } catch {
     myVideos.value = []
+  }
+}
+
+async function onDeleteVideo(id: number) {
+  if (!confirm('确定删险该视频吗？')) return
+  try {
+    await deleteVideo(id)
+    myVideos.value = myVideos.value.filter(v => v.id !== id)
+    videoTotal.value--
+  } catch {
+    alert('删险失败')
   }
 }
 
@@ -465,9 +483,17 @@ onMounted(() => {
               v-for="video in myVideos"
               :key="video.id"
               class="video-card"
+              @click="router.push(`/video/${video.id}`)"
             >
               <div class="video-cover">
-                <div class="video-cover-placeholder">{{ video.category }}</div>
+                <img
+                  v-if="video.cover_url"
+                  :src="getFullUrl(video.cover_url)"
+                  class="video-cover-img"
+                  alt="cover"
+                  @error="$event.target.style.display='none'"
+                />
+                <div v-else class="video-cover-placeholder">{{ video.category }}</div>
               </div>
               <div class="video-info">
                 <div class="video-title">{{ video.title }}</div>
@@ -482,8 +508,8 @@ onMounted(() => {
                 </div>
               </div>
               <div class="video-actions">
-                <button class="action-btn">[ 编辑 ]</button>
-                <button class="action-btn">[ 删除 ]</button>
+                <button class="action-btn" @click.stop="router.push(`/upload/${video.id}`)">[ 编辑 ]</button>
+                <button class="action-btn" @click.stop="onDeleteVideo(video.id)">[ 删除 ]</button>
               </div>
             </div>
           </div>
@@ -491,7 +517,7 @@ onMounted(() => {
           <div v-else class="empty-state">
             <div class="empty-text"
               >> NO_DATA_FOUND</div>
-            <button class="submit-btn" style="margin-top: 16px; width: auto; padding: 0 24px;">
+            <button class="submit-btn" style="margin-top: 16px; width: auto; padding: 0 24px;" @click="router.push('/upload')">
               [ 立即上传 ]
             </button>
           </div>
@@ -504,10 +530,17 @@ onMounted(() => {
               v-for="item in historyList"
               :key="item.id"
               class="history-item"
+              @click="router.push(`/video/${item.id}`)"
             >
               <div class="history-cover">
-                <div class="history-cover-placeholder"
-                  >▶</div>
+                <img
+                  v-if="item.cover_url"
+                  :src="getFullUrl(item.cover_url)"
+                  class="history-cover-img"
+                  alt="cover"
+                  @error="$event.target.style.display='none'"
+                />
+                <div v-else class="history-cover-placeholder">▶</div>
               </div>
               <div class="history-info">
                 <div class="history-title">{{ item.title }}</div>
@@ -1276,6 +1309,33 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+}
+
+.video-cover {
+  width: 120px;
+  height: 72px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #14161f, #2a2d3a);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.video-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.history-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 2px;
 }
 
 .history-cover-placeholder {

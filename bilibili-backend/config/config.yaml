@@ -29,3 +29,9 @@ rabbitmq:
   username: "bilibili"
   password: "bilibili123"
   queue: "video_transcode"
+
+redis:
+  host: "8.210.190.129"
+  port: "6379"
+  password: "bilibili123"
+  db: 0

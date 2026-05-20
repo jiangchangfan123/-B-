@@ -3,7 +3,8 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
 import SideBar from '../components/SideBar.vue'
-import { getVideoDetail, getTranscodeStatus, getVideoList } from '../api/video'
+import VideoPlayer from '../components/VideoPlayer.vue'
+import { getVideoDetail, getTranscodeStatus, getVideoList, likeVideo, getLikeStatus, favoriteVideo, getFavoriteStatus } from '../api/video'
 import type { VideoDetail, VideoListItem } from '../types/video'
 
 const route = useRoute()
@@ -13,8 +14,56 @@ const videoId = Number(route.params.id)
 const video = ref<VideoDetail | null>(null)
 const loading = ref(true)
 const relatedVideos = ref<VideoListItem[]>([])
-const isPlaying = ref(false)
 const descExpanded = ref(false)
+
+// 返回主页
+function goBack() {
+  router.push('/')
+}
+
+// 互动按钮骨架状态
+const actionState = ref({
+  liked: false,
+  coined: false,
+  favorited: false,
+})
+
+async function onLike() {
+  try {
+    const res = await likeVideo(videoId)
+    actionState.value.liked = res.liked
+    if (video.value) {
+      video.value.like_count = res.count
+    }
+  } catch {
+    showToast('点赞失败，请重试')
+  }
+}
+function onCoin() {
+  actionState.value.coined = !actionState.value.coined
+}
+async function onFavorite() {
+  try {
+    const res = await favoriteVideo(videoId)
+    actionState.value.favorited = res.favorited
+  } catch {
+    showToast('收藏失败，请重试')
+  }
+}
+function onShare() {
+  const url = window.location.href
+  navigator.clipboard.writeText(url).catch(() => {})
+  // 简单 toast 提示
+  showToast('链接已复制到剪贴板')
+}
+
+const toastMsg = ref('')
+let toastTimer: ReturnType<typeof setTimeout> | null = null
+function showToast(msg: string) {
+  toastMsg.value = msg
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => { toastMsg.value = '' }, 2000)
+}
 
 // 转码轮询
 let pollTimer: ReturnType<typeof setInterval> | null = null
@@ -23,10 +72,28 @@ const transcodePolling = ref(false)
 onMounted(async () => {
   await loadVideo()
   await loadRelated()
+  // 查询点赞状态
+  try {
+    const status = await getLikeStatus(videoId)
+    actionState.value.liked = status.liked
+    if (video.value) {
+      video.value.like_count = status.count
+    }
+  } catch {
+    // 未登录或其他错误，忽略
+  }
+  // 查询收藏状态
+  try {
+    const favStatus = await getFavoriteStatus(videoId)
+    actionState.value.favorited = favStatus.favorited
+  } catch {
+    // 未登录或其他错误，忽略
+  }
 })
 
 onUnmounted(() => {
   if (pollTimer) clearInterval(pollTimer)
+  if (toastTimer) clearTimeout(toastTimer)
 })
 
 async function loadVideo() {
@@ -34,7 +101,6 @@ async function loadVideo() {
   try {
     const res = await getVideoDetail(videoId)
     video.value = res
-    // 如果转码未完成，开始轮询
     if (res.transcode_status !== 2) {
       startTranscodePolling()
     }
@@ -81,6 +147,13 @@ function formatViews(n: number): string {
   return String(n)
 }
 
+function formatDuration(seconds?: number): string {
+  if (!seconds || seconds <= 0) return '00:00'
+  const m = Math.floor(seconds / 60).toString().padStart(2, '0')
+  const s = (seconds % 60).toString().padStart(2, '0')
+  return `${m}:${s}`
+}
+
 function formatTime(iso: string): string {
   const d = new Date(iso)
   const now = new Date()
@@ -89,10 +162,6 @@ function formatTime(iso: string): string {
   if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`
   if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`
   return `${Math.floor(diff / 86400)}天前`
-}
-
-function onPlay() {
-  isPlaying.value = true
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'
@@ -111,6 +180,19 @@ function getFullUrl(url: string): string {
     <SideBar />
 
     <main class="video-main">
+      <!-- 返回主页按钮 -->
+      <div class="back-bar">
+        <button class="back-btn" @click="goBack">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          <span>返回主页</span>
+        </button>
+      </div>
+
+      <!-- Toast 提示 -->
+      <div v-if="toastMsg" class="video-toast">{{ toastMsg }}</div>
+
       <div v-if="loading" class="video-loading"
         >> LOADING_DATA...</div>
 
@@ -134,19 +216,49 @@ function getFullUrl(url: string): string {
               </div>
             </div>
 
-            <div v-else class="player-video">
-              <video
-                :src="getFullUrl(video.transcoded_url)"
-                controls
-                class="video-element"
-                @play="onPlay"
-                :poster="getFullUrl(video.cover_url)"
-              ></video>
-            </div>
+            <VideoPlayer
+              v-else
+              :video-url="getFullUrl(video.transcoded_url || video.video_url)"
+              :cover-url="getFullUrl(video.cover_url)"
+              :video-id="video.id"
+            />
           </div>
 
           <!-- 视频信息 -->
           <div class="video-info">
+            <!-- 互动按钮区 -->
+            <div class="action-bar">
+              <button
+                class="action-btn"
+                :class="{ 'action-btn--active': actionState.liked }"
+                @click="onLike"
+              >
+                <span class="action-icon">▲</span>
+                <span class="action-label">点赞</span>
+                <span class="action-count">{{ formatViews(video.like_count) }}</span>
+              </button>
+              <button
+                class="action-btn"
+                :class="{ 'action-btn--active': actionState.coined }"
+                @click="onCoin"
+              >
+                <span class="action-icon">◆</span>
+                <span class="action-label">投币</span>
+              </button>
+              <button
+                class="action-btn"
+                :class="{ 'action-btn--active': actionState.favorited }"
+                @click="onFavorite"
+              >
+                <span class="action-icon">★</span>
+                <span class="action-label">收藏</span>
+              </button>
+              <button class="action-btn" @click="onShare">
+                <span class="action-icon">⇧</span>
+                <span class="action-label">分享</span>
+              </button>
+            </div>
+
             <h1 class="video-title"
               >{{ video.title }}</h1>
 
@@ -157,6 +269,8 @@ function getFullUrl(url: string): string {
                 <span class="stat-item"
                   >\u25b6 {{ formatViews(video.view_count) }}</span>
                 <span class="stat-item"
+                  >\u23f1 {{ formatDuration(video.duration) }}</span>
+                <span class="stat-item"
                   >\u25c6 {{ video.like_count }}</span>
                 <span class="stat-item"
                   >\u25a0 {{ video.comment_count }}</span>
@@ -164,7 +278,14 @@ function getFullUrl(url: string): string {
             </div>
 
             <div class="video-up">
-              <div class="up-avatar">
+              <img
+                v-if="video.user_info?.avatar"
+                :src="getFullUrl(video.user_info.avatar)"
+                class="up-avatar up-avatar--img"
+                alt="avatar"
+                @error="$event.target.style.display='none'"
+              />
+              <div v-else class="up-avatar">
                 {{ (video.user_info?.nickname || video.user_info?.username || '?').charAt(0).toUpperCase() }}
               </div>
               <div class="up-info">
@@ -417,6 +538,11 @@ function getFullUrl(url: string): string {
   clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
 }
 
+.up-avatar--img {
+  object-fit: cover;
+  background: none;
+}
+
 .up-info {
   flex: 1;
 }
@@ -539,5 +665,114 @@ function getFullUrl(url: string): string {
   font-family: 'JetBrains Mono', Consolas, monospace;
   font-size: 11px;
   color: #5a5d6e;
+}
+
+/* ========== 返回按钮 ========== */
+.back-bar {
+  margin-bottom: 16px;
+}
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  border-radius: 4px;
+  padding: 6px 14px;
+  color: #8b8fa3;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.back-btn:hover {
+  color: #00f0ff;
+  border-color: rgba(0, 240, 255, 0.5);
+  background: rgba(0, 240, 255, 0.05);
+}
+
+/* ========== Toast 提示 ========== */
+.video-toast {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 17, 23, 0.95);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-radius: 4px;
+  padding: 10px 24px;
+  color: #00f0ff;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 13px;
+  z-index: 2000;
+  animation: toast-in 0.2s ease;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ========== 互动按钮区 ========== */
+.action-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 8px 16px;
+  color: #8b8fa3;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.action-btn:hover {
+  background: rgba(0, 240, 255, 0.06);
+  border-color: rgba(0, 240, 255, 0.3);
+  color: #e4e5eb;
+}
+
+.action-btn--active {
+  background: rgba(0, 240, 255, 0.1);
+  border-color: rgba(0, 240, 255, 0.5);
+  color: #00f0ff;
+}
+
+.action-btn--active .action-icon {
+  color: #00f0ff;
+  filter: drop-shadow(0 0 4px rgba(0, 240, 255, 0.5));
+}
+
+.action-icon {
+  font-size: 12px;
+  color: #5a5d6e;
+  transition: color 0.15s;
+}
+
+.action-label {
+  letter-spacing: 0.02em;
+}
+
+.action-count {
+  margin-left: 2px;
+  color: #5a5d6e;
+  font-size: 12px;
+}
+
+.action-btn--active .action-count {
+  color: #00f0ff;
 }
 </style>
