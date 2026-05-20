@@ -28,7 +28,7 @@ func InitMinIO() error {
 
 	// 创建 bucket（如果不存在）
 	ctx := context.Background()
-	buckets := []string{cfg.BucketVideos, cfg.BucketCovers}
+	buckets := []string{cfg.BucketVideos, cfg.BucketCovers, cfg.BucketAvatars}
 	for _, bucket := range buckets {
 		exists, err := client.BucketExists(ctx, bucket)
 		if err != nil {
@@ -74,6 +74,31 @@ func MinIOGetURL(ctx context.Context, bucket, objectName string) string {
 // MinIOFGetObject 从 MinIO 下载文件到本地
 func MinIOFGetObject(ctx context.Context, bucket, objectName, filePath string) error {
 	return MinioClient.FGetObject(ctx, bucket, objectName, filePath, minio.GetObjectOptions{})
+}
+
+// GetMinIOConfig 获取 MinIO 配置
+func GetMinIOConfig() config.MinIOConfig {
+	return config.C.MinIO
+}
+
+// GetBucketFromURL 从 MinIO URL 中提取 bucket 名
+func GetBucketFromURL(url string) string {
+	// URL 格式: http://endpoint/bucket/object
+	parts := strings.Split(url, "/")
+	if len(parts) >= 4 {
+		return parts[3]
+	}
+	return ""
+}
+
+// GetObjectNameFromURL 从 MinIO URL 中提取 object 名
+func GetObjectNameFromURL(url string) string {
+	// URL 格式: http://endpoint/bucket/object
+	parts := strings.Split(url, "/")
+	if len(parts) >= 5 {
+		return strings.Join(parts[4:], "/")
+	}
+	return ""
 }
 
 // SplitURL 分割 URL

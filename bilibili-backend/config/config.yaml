@@ -22,6 +22,7 @@ minio:
   use_ssl: false
   bucket_videos: "videos"
   bucket_covers: "covers"
+  bucket_avatars: "avatars"
 
 rabbitmq:
   host: "8.210.190.129"

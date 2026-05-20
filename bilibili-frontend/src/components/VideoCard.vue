@@ -70,7 +70,15 @@ function coverStyle(colors: string[]) {
 
       <!-- UP 主 -->
       <div class="video-card__uploader">
+        <img
+          v-if="props.video.uploader.avatar"
+          :src="props.video.uploader.avatar"
+          class="video-card__avatar video-card__avatar--img"
+          alt="avatar"
+          @error="$event.target.style.display='none'"
+        />
         <div
+          v-else
           class="video-card__avatar"
           :style="{ background: props.video.uploader.avatarColor }"
         />
@@ -267,6 +275,11 @@ function coverStyle(colors: string[]) {
   clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
   border: 1px solid rgba(0, 240, 255, 0.4);
   flex-shrink: 0;
+}
+
+.video-card__avatar--img {
+  object-fit: cover;
+  display: block;
 }
 
 .video-card__name {

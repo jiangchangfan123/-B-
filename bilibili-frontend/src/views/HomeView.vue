@@ -5,6 +5,7 @@ import SideBar from '../components/SideBar.vue'
 import BannerCarousel from '../components/BannerCarousel.vue'
 import VideoGrid from '../components/VideoGrid.vue'
 import SectionBlock from '../components/SectionBlock.vue'
+import CategoryFilter from '../components/CategoryFilter.vue'
 import BackToTop from '../components/BackToTop.vue'
 import ScrollProgress from '../components/ScrollProgress.vue'
 import { getVideoList } from '../api/video'
@@ -48,6 +49,18 @@ function formatRelativeTime(iso: string): string {
   return `> ${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
+const activeCategory = ref('all')
+
+const categoryLabelMap: Record<string, string> = {
+  all: '全部',
+  cine: '影视',
+  game: '游戏',
+  acgn: '二次元',
+  chef: '美食',
+  docu: '纪录片',
+  show: '综艺',
+}
+
 // 封面 fallback（当后端没有封面时，用分类确定颜色）
 const categoryPaletteMap: Record<string, string[]> = {
   cine: ['#14161f', '#b829dd'],
@@ -56,10 +69,15 @@ const categoryPaletteMap: Record<string, string[]> = {
   chef: ['#0f1117', '#b829dd'],
   docu: ['#0f1117', '#00f0ff'],
   show: ['#0a0a0f', '#4d6bfa'],
-  scifi: ['#14161f', '#b829dd'],
-  tech: ['#14161f', '#00f0ff'],
-  music: ['#0f1117', '#4d6bfa'],
-  life: ['#0a0a0f', '#b829dd'],
+}
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'
+const SERVER_BASE = API_BASE.replace(/\/api\/v1\/?$/, '')
+
+function getFullUrl(url: string): string {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  return SERVER_BASE + url
 }
 
 function adaptVideoList(rawList: any[]): VideoItem[] {
@@ -67,16 +85,18 @@ function adaptVideoList(rawList: any[]): VideoItem[] {
     const palette = v.cover_url
       ? undefined
       : (categoryPaletteMap[v.category] || randomPalette())
+    const avatarUrl = v.user?.avatar ? getFullUrl(v.user.avatar) : ''
     return {
       id: v.id,
       title: v.title,
-      cover_url: v.cover_url || undefined,
+      cover_url: v.cover_url ? getFullUrl(v.cover_url) : undefined,
       coverGradient: palette || randomPalette(),
       duration: v.duration && v.duration > 0
         ? `${Math.floor(v.duration / 60).toString().padStart(2, '0')}:${(v.duration % 60).toString().padStart(2, '0')}`
         : '00:00',
       uploader: {
         name: v.user?.nickname || v.user?.username || '未知用户',
+        avatar: avatarUrl || undefined,
         avatarColor: randomAvatarColor(),
       },
       views: v.view_count || 0,
@@ -96,7 +116,8 @@ const gameRanks = ref(generateRanks([]))
 async function loadVideos() {
   loading.value = true
   try {
-    const res = await getVideoList(1, 20)
+    const category = activeCategory.value === 'all' ? undefined : activeCategory.value
+    const res = await getVideoList(1, 20, category)
     const adapted = adaptVideoList(res.list)
     videoList.value = adapted
     allSectionVideos.value = adapted
@@ -109,6 +130,14 @@ async function loadVideos() {
     loading.value = false
   }
 }
+
+function onCategoryChange(categoryId: string) {
+  activeCategory.value = categoryId
+  page.value = 1
+  loadVideos()
+}
+
+const page = ref(1)
 
 onMounted(() => {
   loadVideos()
@@ -123,6 +152,7 @@ onMounted(() => {
     <main class="main">
       <div class="main__inner">
         <BannerCarousel />
+        <CategoryFilter @change="onCategoryChange" />
         <section class="main__section">
           <div class="main__section-header">
             <span class="main__section-prefix">//</span>
@@ -131,7 +161,7 @@ onMounted(() => {
           <div class="main__section-divider" />
           <VideoGrid :videos="videoList" :loading="loading" />
         </section>
-        <SectionBlock title="全部 · 最新归档" :videos="allSectionVideos" :ranks="allRanks" />
+        <SectionBlock :title="`${categoryLabelMap[activeCategory]} · 最新归档`" :videos="allSectionVideos" :ranks="allRanks" />
         <SectionBlock title="游戏 · 深度协议" :videos="gameSectionVideos" :ranks="gameRanks" />
       </div>
     </main>

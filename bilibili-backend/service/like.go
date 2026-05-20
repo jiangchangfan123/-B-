@@ -12,12 +12,13 @@ import (
 )
 
 type LikeService struct {
-	likeDao  *dao.LikeDao
-	videoDao *dao.VideoDao
+	likeDao             *dao.LikeDao
+	videoDao            *dao.VideoDao
+	notificationService *NotificationService
 }
 
-func NewLikeService(likeDao *dao.LikeDao, videoDao *dao.VideoDao) *LikeService {
-	return &LikeService{likeDao: likeDao, videoDao: videoDao}
+func NewLikeService(likeDao *dao.LikeDao, videoDao *dao.VideoDao, notificationService *NotificationService) *LikeService {
+	return &LikeService{likeDao: likeDao, videoDao: videoDao, notificationService: notificationService}
 }
 
 // LikeVideo 点赞
@@ -55,6 +56,14 @@ func (s *LikeService) LikeVideo(userID, videoID uint64) error {
 		pipe.Expire(ctx, fmt.Sprintf("video:likes:user:%d", userID), 24*time.Hour)
 		pipe.Expire(ctx, fmt.Sprintf("video:likes:count:%d", videoID), 24*time.Hour)
 		_, _ = pipe.Exec(ctx)
+	}
+
+	// 3. 发送通知（异步，不阻塞）
+	if s.notificationService != nil {
+		video, _ := s.videoDao.GetByID(videoID)
+		if video != nil && video.UserID != userID {
+			go s.notificationService.CreateVideoLikedNotification(videoID, userID, video.UserID)
+		}
 	}
 
 	return nil

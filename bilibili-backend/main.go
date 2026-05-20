@@ -38,7 +38,7 @@ func main() {
 	}
 
 	// 自动迁移
-	if err := db.AutoMigrate(&model.User{}, &model.Video{}, &model.VideoHistory{}, &model.VideoLike{}, &model.VideoFavorite{}); err != nil {
+	if err := db.AutoMigrate(&model.User{}, &model.Video{}, &model.VideoHistory{}, &model.VideoLike{}, &model.VideoFavorite{}, &model.Comment{}, &model.Notification{}); err != nil {
 		log.Fatalf("迁移失败: %v", err)
 	}
 
@@ -76,14 +76,18 @@ func main() {
 	historyDao := dao.NewHistoryDao(db)
 	likeDao := dao.NewLikeDao(db)
 	favoriteDao := dao.NewFavoriteDao(db)
+	commentDao := dao.NewCommentDao(db)
+	notificationDao := dao.NewNotificationDao(db)
 
 	// Service
 	authService := service.NewAuthService(userDao)
 	userService := service.NewUserService(userDao)
 	videoService := service.NewVideoService(videoDao, userDao)
 	historyService := service.NewHistoryService(historyDao)
-	likeService := service.NewLikeService(likeDao, videoDao)
+	notificationService := service.NewNotificationService(notificationDao, userDao, videoDao, commentDao)
+	likeService := service.NewLikeService(likeDao, videoDao, notificationService)
 	favoriteService := service.NewFavoriteService(favoriteDao)
+	commentService := service.NewCommentService(commentDao, userDao, notificationService)
 
 	// Controller
 	authCtrl := controller.NewAuthController(authService)
@@ -92,6 +96,8 @@ func main() {
 	videoCtrl := controller.NewVideoController(videoService, userService, historyService)
 	likeCtrl := controller.NewLikeController(likeService)
 	favoriteCtrl := controller.NewFavoriteController(favoriteService)
+	commentCtrl := controller.NewCommentController(commentService)
+	notificationCtrl := controller.NewNotificationController(notificationService)
 
 	// 启动点赞同步定时任务（每 30 秒同步一次）
 	go func() {
@@ -109,7 +115,7 @@ func main() {
 	r := gin.Default()
 	r.Use(middleware.CORS())
 
-	router.Setup(r, authCtrl, userCtrl, uploadCtrl, videoCtrl, likeCtrl, favoriteCtrl)
+	router.Setup(r, authCtrl, userCtrl, uploadCtrl, videoCtrl, likeCtrl, favoriteCtrl, commentCtrl, notificationCtrl)
 
 	addr := ":" + config.C.Server.Port
 	fmt.Println("🚀 Server running on http://localhost" + addr)

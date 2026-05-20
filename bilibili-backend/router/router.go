@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Setup(r *gin.Engine, authCtrl *controller.AuthController, userCtrl *controller.UserController, uploadCtrl *controller.UploadController, videoCtrl *controller.VideoController, likeCtrl *controller.LikeController, favoriteCtrl *controller.FavoriteController) {
+func Setup(r *gin.Engine, authCtrl *controller.AuthController, userCtrl *controller.UserController, uploadCtrl *controller.UploadController, videoCtrl *controller.VideoController, likeCtrl *controller.LikeController, favoriteCtrl *controller.FavoriteController, commentCtrl *controller.CommentController, notificationCtrl *controller.NotificationController) {
 	// 全局中间件
 	r.Use(middleware.CORS())
 
@@ -33,6 +33,11 @@ func Setup(r *gin.Engine, authCtrl *controller.AuthController, userCtrl *control
 			users.POST("/me/avatar", uploadCtrl.UploadAvatar)
 			users.GET("/me/videos", userCtrl.MyVideos)
 			users.GET("/me/history", userCtrl.History)
+			users.GET("/me/notifications", notificationCtrl.List)
+			users.GET("/me/notifications/unread-count", notificationCtrl.UnreadCount)
+			users.PUT("/me/notifications/:id/read", notificationCtrl.MarkAsRead)
+			users.PUT("/me/notifications/read-all", notificationCtrl.MarkAllAsRead)
+			users.DELETE("/me/notifications/:id", notificationCtrl.Delete)
 		}
 
 		// 视频组（部分需 JWT）
@@ -46,6 +51,7 @@ func Setup(r *gin.Engine, authCtrl *controller.AuthController, userCtrl *control
 		videosDetail.Use(middleware.OptionalAuth())
 		{
 			videosDetail.GET("/:id", videoCtrl.Detail)
+			videosDetail.GET("/:id/comments", commentCtrl.List)
 		}
 		// 需登录的视频操作
 		authVideos := apiV1.Group("/videos")
@@ -58,6 +64,15 @@ func Setup(r *gin.Engine, authCtrl *controller.AuthController, userCtrl *control
 			authVideos.GET("/:id/like/status", likeCtrl.LikeStatus)
 			authVideos.POST("/:id/favorite", favoriteCtrl.ToggleFavorite)
 			authVideos.GET("/:id/favorite/status", favoriteCtrl.FavoriteStatus)
+			authVideos.POST("/:id/comments", commentCtrl.Create)
+		}
+
+		// 评论相关
+		authComments := apiV1.Group("/comments")
+		authComments.Use(middleware.Auth())
+		{
+			authComments.DELETE("/:id", commentCtrl.Delete)
+			authComments.POST("/:id/like", commentCtrl.ToggleLike)
 		}
 
 		// 收藏列表

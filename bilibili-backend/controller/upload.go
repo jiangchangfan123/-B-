@@ -1,11 +1,10 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
-	"strings"
 
 	"bilibili-backend/service"
 	"bilibili-backend/utils"
@@ -21,8 +20,7 @@ func NewUploadController(userService *service.UserService) *UploadController {
 }
 
 // 上传头像 POST /api/v1/users/me/avatar
-// 存储路径: uploads/avatars/{user_id}/avatar.{ext}
-// 覆盖上传：同一用户新头像会覆盖旧文件，不保留历史版本
+// 存储路径: minio://avatars/{user_id}/avatar.{ext}
 func (ctrl *UploadController) UploadAvatar(c *gin.Context) {
 	userIDVal, _ := c.Get("user_id")
 	userID := userIDVal.(uint64)
@@ -47,42 +45,51 @@ func (ctrl *UploadController) UploadAvatar(c *gin.Context) {
 		return
 	}
 
-	// ====== 查询并删除旧头像 ======
-	oldUser, err := ctrl.userService.GetUserByID(userID)
-	if err == nil && oldUser.Avatar != "" {
-		// 将 URL 路径转换为文件系统路径进行删除
-		oldPath := strings.TrimPrefix(oldUser.Avatar, "/")
-		if oldPath != oldUser.Avatar {
-			// 只删除本地存储的文件（以 /uploads/ 开头），不删除外部 URL
-			_ = os.Remove(oldPath)
-		}
-	}
-
-	// ====== 保存新头像（按 user_id 分组，固定文件名覆盖） ======
-	uploadDir := filepath.Join("./uploads", "avatars", fmt.Sprintf("%d", userID))
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		utils.Error(c, utils.CodeBadRequest)
-		return
-	}
-
-	// 固定文件名：avatar.{ext}，同一用户上传新头像时自动覆盖
-	filename := fmt.Sprintf("avatar%s", ext)
-	savePath := filepath.Join(uploadDir, filename)
-
-	out, err := os.Create(savePath)
+	// 读取文件内容
+	data, err := io.ReadAll(file)
 	if err != nil {
 		utils.Error(c, utils.CodeBadRequest)
 		return
 	}
-	defer out.Close()
 
-	if _, err := io.Copy(out, file); err != nil {
+	// ====== 删除旧头像（如果是 MinIO URL） ======
+	oldUser, err := ctrl.userService.GetUserByID(userID)
+	if err == nil && oldUser.Avatar != "" {
+		// 如果是本地文件路径（以 /uploads/ 开头），删除本地文件
+		// 如果是 MinIO URL，从 MinIO 删除
+		if len(oldUser.Avatar) > 0 && oldUser.Avatar[0] == '/' {
+			// 本地文件，不删除（保留兼容）
+		} else if utils.MinioClient != nil {
+			// 尝试从 MinIO 删除
+			bucket := utils.GetBucketFromURL(oldUser.Avatar)
+			if bucket != "" {
+				objectName := utils.GetObjectNameFromURL(oldUser.Avatar)
+				_ = utils.MinIORemoveObject(context.Background(), bucket, objectName)
+			}
+		}
+	}
+
+	// ====== 上传到 MinIO ======
+	bucket := utils.GetMinIOConfig().BucketAvatars
+	if bucket == "" {
+		bucket = "avatars"
+	}
+	objectName := fmt.Sprintf("%d/avatar%s", userID, ext)
+	contentType := "image/jpeg"
+	if ext == ".png" {
+		contentType = "image/png"
+	} else if ext == ".webp" {
+		contentType = "image/webp"
+	}
+
+	ctx := context.Background()
+	if err := utils.MinIOUploadBytes(ctx, bucket, objectName, data, contentType); err != nil {
 		utils.Error(c, utils.CodeBadRequest)
 		return
 	}
 
 	// 生成可访问 URL
-	avatarURL := fmt.Sprintf("/uploads/avatars/%d/%s", userID, filename)
+	avatarURL := utils.MinIOGetURL(ctx, bucket, objectName)
 
 	// 更新用户头像
 	if err := ctrl.userService.UpdateAvatar(userID, avatarURL); err != nil {

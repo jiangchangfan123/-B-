@@ -20,7 +20,8 @@ export interface BannerItem {
 /** UP 主信息 */
 export interface UploaderInfo {
   name: string
-  avatarColor: string
+  avatar?: string       // 真实头像 URL
+  avatarColor: string   // 无头像时的 fallback 颜色
 }
 
 /** 视频数据 */

@@ -5,6 +5,7 @@ import NavBar from '../components/NavBar.vue'
 import SideBar from '../components/SideBar.vue'
 import VideoPlayer from '../components/VideoPlayer.vue'
 import { getVideoDetail, getTranscodeStatus, getVideoList, likeVideo, getLikeStatus, favoriteVideo, getFavoriteStatus } from '../api/video'
+import CommentSection from '../components/CommentSection.vue'
 import type { VideoDetail, VideoListItem } from '../types/video'
 
 const route = useRoute()
@@ -312,6 +313,12 @@ function getFullUrl(url: string): string {
               </button>
             </div>
           </div>
+
+          <!-- 评论区 -->
+          <CommentSection
+            :video-id="videoId"
+            @update-count="(n) => { if (video) video.comment_count = n }"
+          />
         </div>
 
         <!-- 右侧：推荐列表 -->

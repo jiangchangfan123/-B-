@@ -35,12 +35,13 @@ type JWTConfig struct {
 }
 
 type MinIOConfig struct {
-	Endpoint     string `mapstructure:"endpoint"`
-	AccessKey    string `mapstructure:"access_key"`
-	SecretKey    string `mapstructure:"secret_key"`
-	UseSSL       bool   `mapstructure:"use_ssl"`
-	BucketVideos string `mapstructure:"bucket_videos"`
-	BucketCovers string `mapstructure:"bucket_covers"`
+	Endpoint      string `mapstructure:"endpoint"`
+	AccessKey     string `mapstructure:"access_key"`
+	SecretKey     string `mapstructure:"secret_key"`
+	UseSSL        bool   `mapstructure:"use_ssl"`
+	BucketVideos  string `mapstructure:"bucket_videos"`
+	BucketCovers  string `mapstructure:"bucket_covers"`
+	BucketAvatars string `mapstructure:"bucket_avatars"`
 }
 
 type RabbitMQConfig struct {

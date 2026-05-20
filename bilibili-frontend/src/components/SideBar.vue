@@ -15,12 +15,8 @@ const expanded = ref(false)
 const routeMap: Record<string, string> = {
   home: '/',
   favorites: '/favorites',
-  feed: '/feed',
-  hot: '/hot',
-  channel: '/channel',
-  partition: '/partition',
-  settings: '/personal',
-  theme: '/theme',
+  notifications: '/notifications',
+  personal: '/personal',
 }
 
 // 根据当前路由同步 active 状态

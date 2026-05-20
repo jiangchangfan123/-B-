@@ -1,8 +1,8 @@
-2026/05/20 17:25:48 [MinIO] Connected successfully
-2026/05/20 17:25:48 [RabbitMQ] Connected successfully, queue: video_transcode
-2026/05/20 17:25:48 [Transcode] Consumer started, listening queue: video_transcode
-2026/05/20 17:25:48 [Redis] Connected successfully
-2026/05/20 17:25:48 [FFmpeg] 检测到 ffmpeg
+2026/05/20 21:12:26 [MinIO] Connected successfully
+2026/05/20 21:12:26 [RabbitMQ] Connected successfully, queue: video_transcode
+2026/05/20 21:12:26 [Transcode] Consumer started, listening queue: video_transcode
+2026/05/20 21:12:26 [Redis] Connected successfully
+2026/05/20 21:12:26 [FFmpeg] 检测到 ffmpeg
 [GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
 
 [GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
@@ -19,9 +19,15 @@
 [GIN-debug] POST   /api/v1/users/me/avatar   --> bilibili-backend/controller.(*UploadController).UploadAvatar-fm (6 handlers)
 [GIN-debug] GET    /api/v1/users/me/videos   --> bilibili-backend/controller.(*UserController).MyVideos-fm (6 handlers)
 [GIN-debug] GET    /api/v1/users/me/history  --> bilibili-backend/controller.(*UserController).History-fm (6 handlers)
+[GIN-debug] GET    /api/v1/users/me/notifications --> bilibili-backend/controller.(*NotificationController).List-fm (6 handlers)
+[GIN-debug] GET    /api/v1/users/me/notifications/unread-count --> bilibili-backend/controller.(*NotificationController).UnreadCount-fm (6 handlers)
+[GIN-debug] PUT    /api/v1/users/me/notifications/:id/read --> bilibili-backend/controller.(*NotificationController).MarkAsRead-fm (6 handlers)
+[GIN-debug] PUT    /api/v1/users/me/notifications/read-all --> bilibili-backend/controller.(*NotificationController).MarkAllAsRead-fm (6 handlers)
+[GIN-debug] DELETE /api/v1/users/me/notifications/:id --> bilibili-backend/controller.(*NotificationController).Delete-fm (6 handlers)
 [GIN-debug] GET    /api/v1/videos            --> bilibili-backend/controller.(*VideoController).List-fm (5 handlers)
 [GIN-debug] GET    /api/v1/videos/:id/transcode --> bilibili-backend/controller.(*VideoController).TranscodeStatus-fm (5 handlers)
 [GIN-debug] GET    /api/v1/videos/:id        --> bilibili-backend/controller.(*VideoController).Detail-fm (6 handlers)
+[GIN-debug] GET    /api/v1/videos/:id/comments --> bilibili-backend/controller.(*CommentController).List-fm (6 handlers)
 [GIN-debug] POST   /api/v1/videos            --> bilibili-backend/controller.(*VideoController).Upload-fm (6 handlers)
 [GIN-debug] DELETE /api/v1/videos/:id        --> bilibili-backend/controller.(*VideoController).Delete-fm (6 handlers)
 [GIN-debug] PUT    /api/v1/videos/:id        --> bilibili-backend/controller.(*VideoController).Update-fm (6 handlers)
@@ -29,51 +35,100 @@
 [GIN-debug] GET    /api/v1/videos/:id/like/status --> bilibili-backend/controller.(*LikeController).LikeStatus-fm (6 handlers)
 [GIN-debug] POST   /api/v1/videos/:id/favorite --> bilibili-backend/controller.(*FavoriteController).ToggleFavorite-fm (6 handlers)
 [GIN-debug] GET    /api/v1/videos/:id/favorite/status --> bilibili-backend/controller.(*FavoriteController).FavoriteStatus-fm (6 handlers)
+[GIN-debug] POST   /api/v1/videos/:id/comments --> bilibili-backend/controller.(*CommentController).Create-fm (6 handlers)
+[GIN-debug] DELETE /api/v1/comments/:id      --> bilibili-backend/controller.(*CommentController).Delete-fm (6 handlers)
+[GIN-debug] POST   /api/v1/comments/:id/like --> bilibili-backend/controller.(*CommentController).ToggleLike-fm (6 handlers)
 [GIN-debug] GET    /api/v1/users/me/favorites --> bilibili-backend/controller.(*FavoriteController).ListFavorites-fm (6 handlers)
 🚀 Server running on http://localhost:8080
 [GIN-debug] [WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.
 Please check https://github.com/gin-gonic/gin/blob/master/docs/doc.md#dont-trust-all-proxies for details.
 [GIN-debug] Listening and serving HTTP on :8080
-[GIN] 2026/05/20 - 17:26:01 | 204 |   5.19ms |             ::1 | OPTIONS  "/api/v1/users/me"
-[GIN] 2026/05/20 - 17:26:01 | 200 |  22.72ms |             ::1 | GET      "/api/v1/users/me"
-[GIN] 2026/05/20 - 17:26:02 | 204 |   9.41µs |             ::1 | OPTIONS  "/api/v1/videos?page=1&size=20&sort=new"
-[GIN] 2026/05/20 - 17:26:02 | 200 |  53.43ms |             ::1 | GET      "/api/v1/videos?page=1&size=20&sort=new"
-[GIN] 2026/05/20 - 17:26:05 | 204 |  5.475µs |             ::1 | OPTIONS  "/api/v1/users/me/videos?page=1&size=20"
-[GIN] 2026/05/20 - 17:26:05 | 200 |  35.91ms |             ::1 | GET      "/api/v1/users/me/videos?page=1&size=20"
-[GIN] 2026/05/20 - 17:26:07 | 204 | 51.419µs |             ::1 | OPTIONS  "/api/v1/users/me/history?page=1&size=20"
-[GIN] 2026/05/20 - 17:26:07 | 200 |  35.67ms |             ::1 | GET      "/api/v1/users/me/history?page=1&size=20"
-[GIN] 2026/05/20 - 17:26:09 | 204 |  5.914µs |             ::1 | OPTIONS  "/api/v1/videos/7"
-[GIN] 2026/05/20 - 17:26:09 | 200 | 130.77ms |             ::1 | GET      "/api/v1/videos/7"
-[GIN] 2026/05/20 - 17:26:09 | 204 |  6.411µs |             ::1 | OPTIONS  "/api/v1/videos?page=1&size=8&sort=new"
-[GIN] 2026/05/20 - 17:26:09 | 200 |  53.45ms |             ::1 | GET      "/api/v1/videos?page=1&size=8&sort=new"
-[GIN] 2026/05/20 - 17:26:09 | 204 |  5.642µs |             ::1 | OPTIONS  "/api/v1/videos/7/like/status"
-[GIN] 2026/05/20 - 17:26:09 | 200 |  17.31ms |             ::1 | GET      "/api/v1/videos/7/like/status"
-[GIN] 2026/05/20 - 17:26:09 | 204 |   5.81µs |             ::1 | OPTIONS  "/api/v1/videos/7/favorite/status"
-
-2026/05/20 17:26:09 [31;1m/mnt/d/仿制B站/bilibili-backend/dao/favorite.go:29 [35;1mrecord not found
-[0m[33m[17.443ms] [34;1m[rows:0][0m SELECT * FROM `video_favorites` WHERE user_id = 1 AND video_id = 7 ORDER BY `video_favorites`.`id` LIMIT 1
-[GIN] 2026/05/20 - 17:26:09 | 200 |  19.36ms |             ::1 | GET      "/api/v1/videos/7/favorite/status"
-[GIN] 2026/05/20 - 17:26:19 | 204 |  6.677µs |             ::1 | OPTIONS  "/api/v1/users/me/history?page=1&size=20"
-[GIN] 2026/05/20 - 17:26:19 | 200 |   36.4ms |             ::1 | GET      "/api/v1/users/me/history?page=1&size=20"
-[GIN] 2026/05/20 - 17:26:20 | 204 |  9.074µs |             ::1 | OPTIONS  "/api/v1/users/me/videos?page=1&size=20"
-[GIN] 2026/05/20 - 17:26:20 | 200 |  36.97ms |             ::1 | GET      "/api/v1/users/me/videos?page=1&size=20"
-[GIN] 2026/05/20 - 17:26:23 | 204 |  10.63µs |             ::1 | OPTIONS  "/api/v1/videos/7"
-[GIN] 2026/05/20 - 17:26:23 | 200 | 137.83ms |             ::1 | GET      "/api/v1/videos/7"
-[GIN] 2026/05/20 - 17:26:32 | 204 |  7.859µs |             ::1 | OPTIONS  "/api/v1/users/me/videos?page=1&size=20"
-[GIN] 2026/05/20 - 17:26:32 | 200 |  36.59ms |             ::1 | GET      "/api/v1/users/me/videos?page=1&size=20"
-[GIN] 2026/05/20 - 17:26:38 | 204 |  5.918µs |             ::1 | OPTIONS  "/api/v1/videos/4"
-[GIN] 2026/05/20 - 17:26:38 | 200 |  91.44ms |             ::1 | DELETE   "/api/v1/videos/4"
-[GIN] 2026/05/20 - 17:26:40 | 204 |  27.89µs |             ::1 | OPTIONS  "/api/v1/videos/3"
-[GIN] 2026/05/20 - 17:26:40 | 200 |  77.33ms |             ::1 | DELETE   "/api/v1/videos/3"
-[GIN] 2026/05/20 - 17:26:42 | 204 | 32.648µs |             ::1 | OPTIONS  "/api/v1/videos/2"
-[GIN] 2026/05/20 - 17:26:42 | 200 |  77.03ms |             ::1 | DELETE   "/api/v1/videos/2"
-[GIN] 2026/05/20 - 17:26:44 | 204 |  6.376µs |             ::1 | OPTIONS  "/api/v1/videos/1"
-[GIN] 2026/05/20 - 17:26:44 | 200 |  76.62ms |             ::1 | DELETE   "/api/v1/videos/1"
-[GIN] 2026/05/20 - 17:26:45 | 204 |  7.246µs |             ::1 | OPTIONS  "/api/v1/videos?page=1&size=20&sort=new"
-[GIN] 2026/05/20 - 17:26:46 | 200 |  55.13ms |             ::1 | GET      "/api/v1/videos?page=1&size=20&sort=new"
-[GIN] 2026/05/20 - 17:26:57 | 204 |    8.3µs |             ::1 | OPTIONS  "/api/v1/users/me/videos?page=1&size=20"
-[GIN] 2026/05/20 - 17:26:57 | 200 |  38.37ms |             ::1 | GET      "/api/v1/users/me/videos?page=1&size=20"
-[GIN] 2026/05/20 - 17:26:57 | 204 |  7.268µs |             ::1 | OPTIONS  "/api/v1/users/me/history?page=1&size=20"
-[GIN] 2026/05/20 - 17:26:57 | 200 |  36.64ms |             ::1 | GET      "/api/v1/users/me/history?page=1&size=20"
-[GIN] 2026/05/20 - 17:27:00 | 204 |  8.306µs |             ::1 | OPTIONS  "/api/v1/videos?page=1&size=20&sort=new"
-[GIN] 2026/05/20 - 17:27:00 | 200 |   56.4ms |             ::1 | GET      "/api/v1/videos?page=1&size=20&sort=new"
+[GIN] 2026/05/20 - 21:12:41 | 204 |   2.95ms |             ::1 | OPTIONS  "/api/v1/users/me"
+[GIN] 2026/05/20 - 21:12:41 | 200 |  23.42ms |             ::1 | GET      "/api/v1/users/me"
+[GIN] 2026/05/20 - 21:12:42 | 204 |   7.16µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:12:42 | 204 |   1.84ms |             ::1 | OPTIONS  "/api/v1/videos?page=1&size=20&sort=new"
+[GIN] 2026/05/20 - 21:12:42 | 200 |  19.84ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:12:42 | 304 |  27.66ms |             ::1 | GET      "/uploads/avatars/1/avatar.jpg"
+[GIN] 2026/05/20 - 21:12:42 | 200 |  78.91ms |             ::1 | GET      "/api/v1/videos?page=1&size=20&sort=new"
+[GIN] 2026/05/20 - 21:12:46 | 204 |   5.56µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications?page=1&size=20"
+[GIN] 2026/05/20 - 21:12:47 | 200 |  16.01ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:12:47 | 200 |  62.43ms |             ::1 | GET      "/api/v1/users/me/notifications?page=1&size=20"
+[GIN] 2026/05/20 - 21:12:56 | 204 |  8.927µs |             ::1 | OPTIONS  "/api/v1/users/me/avatar"
+[GIN] 2026/05/20 - 21:12:56 | 200 | 167.82ms |             ::1 | POST     "/api/v1/users/me/avatar"
+[GIN] 2026/05/20 - 21:12:58 | 204 |  9.285µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:12:58 | 204 | 63.563µs |             ::1 | OPTIONS  "/api/v1/videos?page=1&size=20&sort=new"
+[GIN] 2026/05/20 - 21:12:58 | 200 |  20.43ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:12:58 | 200 |  49.22ms |             ::1 | GET      "/api/v1/videos?page=1&size=20&sort=new"
+[GIN] 2026/05/20 - 21:12:59 | 204 |  5.373µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications?page=1&size=20"
+[GIN] 2026/05/20 - 21:12:59 | 200 |  16.56ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:12:59 | 200 |  60.38ms |             ::1 | GET      "/api/v1/users/me/notifications?page=1&size=20"
+[GIN] 2026/05/20 - 21:13:05 | 204 |  8.108µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:13:05 | 204 |  6.256µs |             ::1 | OPTIONS  "/api/v1/videos?page=1&size=20&sort=new"
+[GIN] 2026/05/20 - 21:13:05 | 200 |  20.04ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:13:05 | 200 |  49.58ms |             ::1 | GET      "/api/v1/videos?page=1&size=20&sort=new"
+[GIN] 2026/05/20 - 21:13:28 | 200 |   49.1ms |             ::1 | GET      "/api/v1/videos?page=1&size=20&sort=new"
+[GIN] 2026/05/20 - 21:13:36 | 204 |  6.162µs |             ::1 | OPTIONS  "/api/v1/auth/login"
+[GIN] 2026/05/20 - 21:13:36 | 200 |  86.25ms |             ::1 | POST     "/api/v1/auth/login"
+[GIN] 2026/05/20 - 21:13:36 | 204 |    9.8µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:13:36 | 204 |  8.712µs |             ::1 | OPTIONS  "/api/v1/videos?page=1&size=20&sort=new"
+[GIN] 2026/05/20 - 21:13:36 | 200 |  20.31ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:13:36 | 200 |  47.68ms |             ::1 | GET      "/api/v1/videos?page=1&size=20&sort=new"
+[GIN] 2026/05/20 - 21:13:44 | 204 | 15.303µs |             ::1 | OPTIONS  "/api/v1/users/me/avatar"
+[GIN] 2026/05/20 - 21:13:44 | 200 | 189.76ms |             ::1 | POST     "/api/v1/users/me/avatar"
+[GIN] 2026/05/20 - 21:13:46 | 204 | 10.416µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:13:46 | 204 | 13.531µs |             ::1 | OPTIONS  "/api/v1/videos?page=1&size=20&sort=new"
+[GIN] 2026/05/20 - 21:13:46 | 200 |  17.21ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:13:46 | 200 |  62.31ms |             ::1 | GET      "/api/v1/videos?page=1&size=20&sort=new"
+[GIN] 2026/05/20 - 21:13:47 | 204 |  7.194µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications?page=1&size=20"
+[GIN] 2026/05/20 - 21:13:47 | 200 |  19.99ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:13:47 | 200 |  47.92ms |             ::1 | GET      "/api/v1/users/me/notifications?page=1&size=20"
+[GIN] 2026/05/20 - 21:13:50 | 204 |  7.244µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications/read-all"
+[GIN] 2026/05/20 - 21:13:50 | 200 |  32.52ms |             ::1 | PUT      "/api/v1/users/me/notifications/read-all"
+[GIN] 2026/05/20 - 21:13:51 | 204 |  7.199µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications?page=1&size=20&unread_only=true"
+[GIN] 2026/05/20 - 21:13:51 | 200 |  32.65ms |             ::1 | GET      "/api/v1/users/me/notifications?page=1&size=20&unread_only=true"
+[GIN] 2026/05/20 - 21:13:51 | 200 |  47.73ms |             ::1 | GET      "/api/v1/users/me/notifications?page=1&size=20"
+[GIN] 2026/05/20 - 21:13:52 | 204 | 11.117µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:13:52 | 204 |  5.964µs |             ::1 | OPTIONS  "/api/v1/videos?page=1&size=20&sort=new"
+[GIN] 2026/05/20 - 21:13:52 | 200 |   20.5ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:13:52 | 200 |   50.3ms |             ::1 | GET      "/api/v1/videos?page=1&size=20&sort=new"
+[GIN] 2026/05/20 - 21:13:55 | 204 |  5.639µs |             ::1 | OPTIONS  "/api/v1/videos/7"
+[GIN] 2026/05/20 - 21:13:55 | 200 |  16.15ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:13:55 | 200 | 155.54ms |             ::1 | GET      "/api/v1/videos/7"
+[GIN] 2026/05/20 - 21:13:56 | 204 | 12.146µs |             ::1 | OPTIONS  "/api/v1/videos/7/comments?page=1&size=20&sort=time"
+[GIN] 2026/05/20 - 21:13:56 | 204 |  7.273µs |             ::1 | OPTIONS  "/api/v1/videos?page=1&size=8&sort=new"
+[GIN] 2026/05/20 - 21:13:56 | 200 |  50.01ms |             ::1 | GET      "/api/v1/videos?page=1&size=8&sort=new"
+[GIN] 2026/05/20 - 21:13:56 | 204 | 11.152µs |             ::1 | OPTIONS  "/api/v1/videos/7/like/status"
+[GIN] 2026/05/20 - 21:13:56 | 200 |  19.58ms |             ::1 | GET      "/api/v1/videos/7/like/status"
+[GIN] 2026/05/20 - 21:13:56 | 204 | 11.245µs |             ::1 | OPTIONS  "/api/v1/videos/7/favorite/status"
+[GIN] 2026/05/20 - 21:13:56 | 200 |  17.08ms |             ::1 | GET      "/api/v1/videos/7/favorite/status"
+[GIN] 2026/05/20 - 21:13:56 | 200 | 424.41ms |             ::1 | GET      "/api/v1/videos/7/comments?page=1&size=20&sort=time"
+[GIN] 2026/05/20 - 21:14:13 | 204 | 10.014µs |             ::1 | OPTIONS  "/api/v1/videos/7/comments"
+[GIN] 2026/05/20 - 21:14:13 | 200 | 105.37ms |             ::1 | POST     "/api/v1/videos/7/comments"
+[GIN] 2026/05/20 - 21:14:13 | 204 |  7.725µs |             ::1 | OPTIONS  "/api/v1/videos/7/comments?page=1&size=20&sort=time"
+[GIN] 2026/05/20 - 21:14:13 | 200 |  466.7ms |             ::1 | GET      "/api/v1/videos/7/comments?page=1&size=20&sort=time"
+[GIN] 2026/05/20 - 21:14:19 | 204 | 13.023µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:14:19 | 204 | 13.678µs |             ::1 | OPTIONS  "/api/v1/videos?page=1&size=20&sort=new"
+[GIN] 2026/05/20 - 21:14:19 | 200 |  21.38ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:14:19 | 200 |  51.46ms |             ::1 | GET      "/api/v1/videos?page=1&size=20&sort=new"
+[GIN] 2026/05/20 - 21:14:26 | 200 |  48.76ms |             ::1 | GET      "/api/v1/videos?page=1&size=20&sort=new"
+[GIN] 2026/05/20 - 21:14:35 | 204 |  6.464µs |             ::1 | OPTIONS  "/api/v1/auth/login"
+[GIN] 2026/05/20 - 21:14:35 | 200 |  76.39ms |             ::1 | POST     "/api/v1/auth/login"
+[GIN] 2026/05/20 - 21:14:35 | 204 |  8.174µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:14:35 | 204 |  7.474µs |             ::1 | OPTIONS  "/api/v1/videos?page=1&size=20&sort=new"
+[GIN] 2026/05/20 - 21:14:35 | 200 |  16.12ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:14:35 | 200 |  61.21ms |             ::1 | GET      "/api/v1/videos?page=1&size=20&sort=new"
+[GIN] 2026/05/20 - 21:14:38 | 204 |  5.792µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications?page=1&size=20"
+[GIN] 2026/05/20 - 21:14:38 | 200 |  20.12ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:14:38 | 200 |  47.81ms |             ::1 | GET      "/api/v1/users/me/notifications?page=1&size=20"
+[GIN] 2026/05/20 - 21:14:42 | 204 |  8.487µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications/5/read"
+[GIN] 2026/05/20 - 21:14:42 | 200 |   35.4ms |             ::1 | PUT      "/api/v1/users/me/notifications/5/read"
+[GIN] 2026/05/20 - 21:14:43 | 204 |  6.226µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications?page=1&size=20&unread_only=true"
+[GIN] 2026/05/20 - 21:14:43 | 200 |  31.92ms |             ::1 | GET      "/api/v1/users/me/notifications?page=1&size=20&unread_only=true"
+[GIN] 2026/05/20 - 21:14:44 | 204 |  5.634µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications?page=1&size=20"
+[GIN] 2026/05/20 - 21:14:44 | 200 |  48.52ms |             ::1 | GET      "/api/v1/users/me/notifications?page=1&size=20"
+[GIN] 2026/05/20 - 21:14:51 | 204 | 14.704µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:14:51 | 204 | 28.816µs |             ::1 | OPTIONS  "/api/v1/videos?page=1&size=20&sort=new"
+[GIN] 2026/05/20 - 21:14:51 | 200 |  20.15ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:14:51 | 200 |  49.69ms |             ::1 | GET      "/api/v1/videos?page=1&size=20&sort=new"
+[GIN] 2026/05/20 - 21:15:21 | 204 |  9.307µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications/unread-count"
+[GIN] 2026/05/20 - 21:15:21 | 200 |  16.38ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"

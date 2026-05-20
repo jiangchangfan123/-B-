@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import type { CategoryItem, HotSearchItem } from '../types/home'
 import { categoryList, hotSearchList } from '../mock/homeData'
+import { getUnreadCount } from '../api/notification'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -26,6 +27,31 @@ const searchFocused = ref(false)
 const searchKeyword = ref('')
 const searchPanelRef = ref<HTMLDivElement | null>(null)
 const searchInputRef = ref<HTMLInputElement | null>(null)
+
+// 未读消息数
+const unreadCount = ref(0)
+let unreadTimer: ReturnType<typeof setInterval> | null = null
+
+async function fetchUnreadCount() {
+  if (!userStore.isLoggedIn) return
+  try {
+    unreadCount.value = await getUnreadCount()
+  } catch (e) {
+    // 静默失败
+  }
+}
+
+function startUnreadPolling() {
+  fetchUnreadCount()
+  unreadTimer = setInterval(fetchUnreadCount, 30000)
+}
+
+function stopUnreadPolling() {
+  if (unreadTimer) {
+    clearInterval(unreadTimer)
+    unreadTimer = null
+  }
+}
 
 function onFocus() {
   searchFocused.value = true
@@ -61,14 +87,20 @@ function switchCategory(id: string) {
   categories.value = categories.value.map((c) => ({ ...c, active: c.id === id }))
 }
 
+function goToNotifications() {
+  router.push('/notifications')
+}
+
 onMounted(() => {
   document.addEventListener('click', onClickOutside)
   document.addEventListener('keydown', onKeyDown)
+  startUnreadPolling()
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', onClickOutside)
   document.removeEventListener('keydown', onKeyDown)
+  stopUnreadPolling()
 })
 </script>
 
@@ -149,12 +181,16 @@ onUnmounted(() => {
     <!-- 右侧：功能区 -->
     <div class="navbar__right">
       <!-- 消息 -->
-      <div class="navbar__icon-btn navbar__icon-btn--bell" title="消息">
+      <div
+        class="navbar__icon-btn navbar__icon-btn--bell"
+        title="消息"
+        @click="goToNotifications"
+      >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
           <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
         </svg>
-        <span class="navbar__icon-badge" />
+        <span v-if="unreadCount > 0" class="navbar__icon-badge" />
       </div>
 
       <!-- 历史 -->
