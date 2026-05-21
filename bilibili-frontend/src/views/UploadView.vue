@@ -200,18 +200,6 @@ async function onSubmit() {
   uploadState.value = 'uploading'
   uploadProgress.value = 0
 
-  // 模拟上传进度
-  let progress = 0
-  progressTimer = setInterval(() => {
-    progress += Math.random() * 8
-    if (progress >= 100) {
-      progress = 100
-      if (progressTimer) clearInterval(progressTimer)
-    }
-    uploadProgress.value = Math.min(progress, 100)
-    uploadSpeed.value = `> ${(Math.random() * 15 + 2).toFixed(1)} MB/s`
-  }, 200)
-
   const formData = new FormData()
   formData.append('file', selectedFile.value)
   formData.append('title', form.title)
@@ -222,7 +210,13 @@ async function onSubmit() {
   }
 
   try {
-    const res = await uploadVideo(formData)
+    const res = await uploadVideo(formData, (progress: number) => {
+      uploadProgress.value = progress
+      const speedMBps = selectedFile.value
+        ? (selectedFile.value.size / 1024 / 1024 / (Date.now() / 1000)).toFixed(1)
+        : '0'
+      uploadSpeed.value = `> ${speedMBps} MB/s`
+    })
     videoId.value = res.id
 
     // 上传完成，进入转码阶段

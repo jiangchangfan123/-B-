@@ -7,11 +7,19 @@ import type {
 } from '../types/video'
 
 /** 更新视频 */
-export async function updateVideo(id: number, formData: FormData): Promise<void> {
+export async function updateVideo(id: number, formData: FormData, onProgress?: (progress: number) => void): Promise<void> {
   return request.put(`/videos/${id}`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
+    timeout: 0, // 大文件上传不设超时
+    onUploadProgress: onProgress
+      ? (progressEvent) => {
+          const total = progressEvent.total || progressEvent.loaded || 1
+          const percent = Math.round((progressEvent.loaded / total) * 100)
+          onProgress(percent)
+        }
+      : undefined,
   })
 }
 const USE_MOCK = false
@@ -19,7 +27,7 @@ const USE_MOCK = false
 let mockPollCount = 0
 
 /**视频上传 */
-export async function uploadVideo(formData: FormData): Promise<UploadResponse> {
+export async function uploadVideo(formData: FormData, onProgress?: (progress: number) => void): Promise<UploadResponse> {
   if (USE_MOCK) {
     await delay(2000)
     return {
@@ -35,6 +43,14 @@ export async function uploadVideo(formData: FormData): Promise<UploadResponse> {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
+    timeout: 0, // 大文件上传不设超时
+    onUploadProgress: onProgress
+      ? (progressEvent) => {
+          const total = progressEvent.total || progressEvent.loaded || 1
+          const percent = Math.round((progressEvent.loaded / total) * 100)
+          onProgress(percent)
+        }
+      : undefined,
   })
 }
 

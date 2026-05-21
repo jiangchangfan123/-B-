@@ -6,6 +6,7 @@ import type { DanmakuItem } from '../api/danmaku'
 const props = defineProps<{
   videoId: number
   currentTime: number
+  isPlaying: boolean
 }>()
 
 // ========== WebSocket ==========
@@ -31,6 +32,7 @@ const danmakuPool = ref<DanmakuItem[]>([])
 const shownIds = ref<Set<number>>(new Set())
 
 const currentSecond = computed(() => Math.floor(props.currentTime))
+let lastSecond = -1
 
 // ========== WebSocket 连接 ==========
 function connectWS() {
@@ -119,6 +121,11 @@ function addDanmakuToScreen(danmaku: DanmakuItem) {
   const duration = 6 + Math.random() * 4
   el.style.setProperty('--duration', `${duration}s`)
 
+  // 如果当前处于暂停状态，创建后立即暂停动画
+  if (!props.isPlaying) {
+    el.style.animationPlayState = 'paused'
+  }
+
   containerRef.value.appendChild(el)
 
   // 动画结束后移除 DOM
@@ -165,10 +172,42 @@ function showDanmakuAtTime(second: number) {
   })
 }
 
+// 清空当前屏幕所有弹幕
+function clearScreenDanmaku() {
+  if (!containerRef.value) return
+  // 移除所有子元素
+  while (containerRef.value.firstChild) {
+    containerRef.value.firstChild.remove()
+  }
+}
+
 // 播放进度变化时，显示对应时间点的弹幕
-watch(currentSecond, (second) => {
+watch(currentSecond, (second, oldSecond) => {
   if (second < 0) return
-  showDanmakuAtTime(second)
+
+  // 检测进度条跳（用户拖动进度条或重新播放）
+  // 跳跃超过 2 秒认为是人为操作，清空屏幕并重新显示
+  const jump = Math.abs(second - lastSecond)
+  if (lastSecond >= 0 && jump > 2) {
+    console.log(`[Danmaku] 检测到进度跳转: ${lastSecond}s -> ${second}s, 清空屏幕重新加载`)
+    clearScreenDanmaku()
+    shownIds.value.clear()
+    // 显示新时间点的弹幕
+    showDanmakuAtTime(second)
+  } else {
+    // 正常播放，显示当前秒的弹幕
+    showDanmakuAtTime(second)
+  }
+  lastSecond = second
+})
+
+// 监听播放/暂停状态：控制所有弹幕动画的播放/暂停
+watch(() => props.isPlaying, (playing) => {
+  if (!containerRef.value) return
+  const items = containerRef.value.querySelectorAll('.danmaku-item')
+  items.forEach((el) => {
+    ;(el as HTMLElement).style.animationPlayState = playing ? 'running' : 'paused'
+  })
 })
 
 // ========== 生命周期 ==========
@@ -211,7 +250,7 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-/* 
+/*
  * 使用 :deep() 确保动态创建的弹幕元素能获得样式。
  * Vue scoped CSS 不会自动给 document.createElement 创建的元素添加 data-v 属性，
  * :deep() 会编译为 [data-v-xxxxx] .danmaku-item ，通过父元素匹配后代。

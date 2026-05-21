@@ -20,6 +20,7 @@ const loading = ref(true)
 const relatedVideos = ref<VideoListItem[]>([])
 const descExpanded = ref(false)
 const currentTime = ref(0)
+const isPlaying = ref(false)
 
 // 弹幕输入
 const danmakuInput = ref('')
@@ -270,12 +271,14 @@ function getFullUrl(url: string): string {
                 ref="danmakuLayerRef"
                 :video-id="video.id"
                 :current-time="currentTime"
+                :is-playing="isPlaying"
               />
               <VideoPlayer
                 :video-url="getFullUrl(video.transcoded_url || video.video_url)"
                 :cover-url="getFullUrl(video.cover_url)"
                 :video-id="video.id"
                 @timeupdate="currentTime = $event"
+                @playstate="isPlaying = $event"
               />
             </template>
           </div>

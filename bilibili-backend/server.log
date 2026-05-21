@@ -1,8 +1,8 @@
-2026/05/20 23:38:45 [MinIO] Connected successfully
-2026/05/20 23:38:45 [RabbitMQ] Connected successfully, queue: video_transcode
-2026/05/20 23:38:45 [Transcode] Consumer started, listening queue: video_transcode
-2026/05/20 23:38:45 [Redis] Connected successfully
-2026/05/20 23:38:45 [FFmpeg] 检测到 ffmpeg
+2026/05/21 14:08:40 [MinIO] Connected successfully
+2026/05/21 14:08:40 [RabbitMQ] Connected successfully, queue: video_transcode
+2026/05/21 14:08:40 [Transcode] Consumer started, listening queue: video_transcode
+2026/05/21 14:08:40 [Redis] Connected successfully
+2026/05/21 14:08:40 [FFmpeg] 检测到 ffmpeg
 [GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
 
 [GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
@@ -46,77 +46,5 @@
 [GIN-debug] [WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.
 Please check https://github.com/gin-gonic/gin/blob/master/docs/doc.md#dont-trust-all-proxies for details.
 [GIN-debug] Listening and serving HTTP on :8080
-[GIN] 2026/05/20 - 23:39:02 | 204 |    2.7ms |             ::1 | OPTIONS  "/api/v1/users/me"
-[GIN] 2026/05/20 - 23:39:02 | 200 |  20.16ms |             ::1 | GET      "/api/v1/users/me"
-[GIN] 2026/05/20 - 23:39:03 | 204 |  8.998µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications/unread-count"
-[GIN] 2026/05/20 - 23:39:03 | 204 | 24.236µs |             ::1 | OPTIONS  "/api/v1/videos?page=1&size=20&sort=new"
-[GIN] 2026/05/20 - 23:39:03 | 200 |   15.6ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"
-[GIN] 2026/05/20 - 23:39:03 | 200 |  91.25ms |             ::1 | GET      "/api/v1/videos?page=1&size=20&sort=new"
-[GIN] 2026/05/20 - 23:39:05 | 204 |  3.219µs |             ::1 | OPTIONS  "/api/v1/videos/7"
-[GIN] 2026/05/20 - 23:39:05 | 200 |  18.28ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"
-[GIN] 2026/05/20 - 23:39:05 | 200 | 117.95ms |             ::1 | GET      "/api/v1/videos/7"
-2026/05/20 23:39:05 [WS] 连接注册到 video_id=7，当前连接数: 1
-[GIN] 2026/05/20 - 23:39:05 | 200 | 435.333µs |             ::1 | GET      "/ws/danmaku?video_id=7"
-[GIN] 2026/05/20 - 23:39:05 | 204 |  7.336µs |             ::1 | OPTIONS  "/api/v1/videos/7/comments?page=1&size=20&sort=time"
-[GIN] 2026/05/20 - 23:39:05 | 204 |  3.918µs |             ::1 | OPTIONS  "/api/v1/videos/7/danmaku?start=0&end=7200"
-[GIN] 2026/05/20 - 23:39:05 | 204 | 870.144µs |             ::1 | OPTIONS  "/api/v1/videos?page=1&size=8&sort=new"
-[GIN] 2026/05/20 - 23:39:05 | 200 |  16.66ms |             ::1 | GET      "/api/v1/videos/7/danmaku?start=0&end=7200"
-[GIN] 2026/05/20 - 23:39:05 | 200 |  81.64ms |             ::1 | GET      "/api/v1/videos?page=1&size=8&sort=new"
-[GIN] 2026/05/20 - 23:39:05 | 204 | 10.123µs |             ::1 | OPTIONS  "/api/v1/videos/7/like/status"
-[GIN] 2026/05/20 - 23:39:05 | 200 |   24.5ms |             ::1 | GET      "/api/v1/videos/7/like/status"
-[GIN] 2026/05/20 - 23:39:05 | 204 |  7.672µs |             ::1 | OPTIONS  "/api/v1/videos/7/favorite/status"
-
-2026/05/20 23:39:05 [31;1m/mnt/d/仿制B站/bilibili-backend/dao/favorite.go:29 [35;1mrecord not found
-[0m[33m[15.777ms] [34;1m[rows:0][0m SELECT * FROM `video_favorites` WHERE user_id = 1 AND video_id = 7 ORDER BY `video_favorites`.`id` LIMIT 1
-[GIN] 2026/05/20 - 23:39:05 | 200 |  17.83ms |             ::1 | GET      "/api/v1/videos/7/favorite/status"
-[GIN] 2026/05/20 - 23:39:05 | 200 | 411.95ms |             ::1 | GET      "/api/v1/videos/7/comments?page=1&size=20&sort=time"
-[GIN] 2026/05/20 - 23:39:12 | 204 | 16.038µs |             ::1 | OPTIONS  "/api/v1/videos/7/danmaku"
-[GIN] 2026/05/20 - 23:39:12 | 200 |  40.41ms |             ::1 | POST     "/api/v1/videos/7/danmaku"
-2026/05/20 23:39:12 [Danmaku] 已广播到 video_id=7
-[GIN] 2026/05/20 - 23:39:35 | 204 | 644.267µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications/unread-count"
-[GIN] 2026/05/20 - 23:39:35 | 200 |  34.11ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"
-[GIN] 2026/05/20 - 23:40:05 | 204 | 24.967µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications/unread-count"
-[GIN] 2026/05/20 - 23:40:05 | 200 |   17.7ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"
-2026/05/20 23:40:05 [WS] 连接从 video_id=7 移除，剩余连接数: 0
-2026/05/20 23:40:08 [WS] 连接注册到 video_id=7，当前连接数: 1
-[GIN] 2026/05/20 - 23:40:08 | 200 | 787.635µs |             ::1 | GET      "/ws/danmaku?video_id=7"
-2026/05/20 23:40:24 [WS] 读取消息错误: websocket: close 1005 (no status)
-2026/05/20 23:40:24 [WS] 连接从 video_id=7 移除，剩余连接数: 0
-[GIN] 2026/05/20 - 23:40:25 | 204 |  93.77µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications/unread-count"
-[GIN] 2026/05/20 - 23:40:25 | 200 |  17.25ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"
-[GIN] 2026/05/20 - 23:40:26 | 200 |  50.27ms |             ::1 | GET      "/api/v1/videos?page=1&size=20&sort=new"
-2026/05/20 23:40:28 [WS] 连接注册到 video_id=7，当前连接数: 1
-[GIN] 2026/05/20 - 23:40:28 | 200 |   2.02ms |             ::1 | GET      "/ws/danmaku?video_id=7"
-[GIN] 2026/05/20 - 23:40:33 | 204 |  5.789µs |             ::1 | OPTIONS  "/api/v1/auth/login"
-[GIN] 2026/05/20 - 23:40:33 | 200 |  92.58ms |             ::1 | POST     "/api/v1/auth/login"
-[GIN] 2026/05/20 - 23:40:33 | 204 |  11.81µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications/unread-count"
-[GIN] 2026/05/20 - 23:40:33 | 204 |  8.711µs |             ::1 | OPTIONS  "/api/v1/videos?page=1&size=20&sort=new"
-[GIN] 2026/05/20 - 23:40:33 | 200 |  16.66ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"
-[GIN] 2026/05/20 - 23:40:33 | 200 |  50.36ms |             ::1 | GET      "/api/v1/videos?page=1&size=20&sort=new"
-[GIN] 2026/05/20 - 23:40:34 | 204 |  6.333µs |             ::1 | OPTIONS  "/api/v1/videos/7"
-[GIN] 2026/05/20 - 23:40:34 | 200 |  16.89ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"
-[GIN] 2026/05/20 - 23:40:34 | 200 | 119.27ms |             ::1 | GET      "/api/v1/videos/7"
-2026/05/20 23:40:34 [WS] 连接注册到 video_id=7，当前连接数: 2
-[GIN] 2026/05/20 - 23:40:34 | 200 | 645.501µs |             ::1 | GET      "/ws/danmaku?video_id=7"
-[GIN] 2026/05/20 - 23:40:34 | 204 | 63.781µs |             ::1 | OPTIONS  "/api/v1/videos/7/comments?page=1&size=20&sort=time"
-[GIN] 2026/05/20 - 23:40:34 | 204 | 12.144µs |             ::1 | OPTIONS  "/api/v1/videos/7/danmaku?start=0&end=7200"
-[GIN] 2026/05/20 - 23:40:34 | 204 |  8.642µs |             ::1 | OPTIONS  "/api/v1/videos?page=1&size=8&sort=new"
-[GIN] 2026/05/20 - 23:40:35 | 200 |  18.39ms |             ::1 | GET      "/api/v1/videos/7/danmaku?start=0&end=7200"
-[GIN] 2026/05/20 - 23:40:35 | 200 |  100.8ms |             ::1 | GET      "/api/v1/videos?page=1&size=8&sort=new"
-[GIN] 2026/05/20 - 23:40:35 | 204 |   8.37µs |             ::1 | OPTIONS  "/api/v1/videos/7/like/status"
-[GIN] 2026/05/20 - 23:40:35 | 200 |  16.38ms |             ::1 | GET      "/api/v1/videos/7/like/status"
-[GIN] 2026/05/20 - 23:40:35 | 204 |  7.586µs |             ::1 | OPTIONS  "/api/v1/videos/7/favorite/status"
-[GIN] 2026/05/20 - 23:40:35 | 200 |  15.96ms |             ::1 | GET      "/api/v1/videos/7/favorite/status"
-[GIN] 2026/05/20 - 23:40:35 | 200 | 446.69ms |             ::1 | GET      "/api/v1/videos/7/comments?page=1&size=20&sort=time"
-[GIN] 2026/05/20 - 23:41:04 | 204 |  9.211µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications/unread-count"
-[GIN] 2026/05/20 - 23:41:04 | 200 |  19.99ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"
-2026/05/20 23:41:11 [WS] 读取消息错误: websocket: close 1005 (no status)
-2026/05/20 23:41:11 [WS] 连接从 video_id=7 移除，剩余连接数: 1
-[GIN] 2026/05/20 - 23:41:11 | 204 | 11.069µs |             ::1 | OPTIONS  "/api/v1/users/me/notifications/unread-count"
-[GIN] 2026/05/20 - 23:41:11 | 204 | 10.518µs |             ::1 | OPTIONS  "/api/v1/videos?page=1&size=20&sort=new"
-[GIN] 2026/05/20 - 23:41:11 | 200 |  20.13ms |             ::1 | GET      "/api/v1/users/me/notifications/unread-count"
-[GIN] 2026/05/20 - 23:41:11 | 200 |  52.86ms |             ::1 | GET      "/api/v1/videos?page=1&size=20&sort=new"
-2026/05/20 23:41:14 [WS] 连接注册到 video_id=7，当前连接数: 2
-[GIN] 2026/05/20 - 23:41:14 | 200 | 636.262µs |             ::1 | GET      "/ws/danmaku?video_id=7"
-2026/05/20 23:41:19 [WS] 连接从 video_id=7 移除，剩余连接数: 1
-2026/05/20 23:41:19 [WS] 连接从 video_id=7 移除，剩余连接数: 0
+[GIN-debug] [ERROR] listen tcp :8080: bind: address already in use
+2026/05/21 14:08:40 服务启动失败: listen tcp :8080: bind: address already in use

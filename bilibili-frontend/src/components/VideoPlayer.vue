@@ -15,6 +15,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   'timeupdate': [time: number]
+  'playstate': [isPlaying: boolean]
 }>()
 
 const containerRef = ref<HTMLDivElement | null>(null)
@@ -67,6 +68,7 @@ function initPlayer() {
   // 每 5 秒保存进度
   let saveTimer: ReturnType<typeof setInterval> | null = null
   dp.on('play', () => {
+    emit('playstate', true)
     saveTimer = setInterval(() => {
       if (dp) {
         const current = dp.video.currentTime
@@ -92,6 +94,7 @@ function initPlayer() {
   })
 
   dp.on('pause', () => {
+    emit('playstate', false)
     if (saveTimer) {
       clearInterval(saveTimer)
       saveTimer = null

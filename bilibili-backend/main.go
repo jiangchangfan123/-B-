@@ -116,6 +116,7 @@ func main() {
 	// Gin
 	gin.SetMode(config.C.Server.Mode)
 	r := gin.Default()
+	r.MaxMultipartMemory = 256 << 20 // 256MB multipart memory limit
 	r.Use(middleware.CORS())
 
 	router.Setup(r, authCtrl, userCtrl, uploadCtrl, videoCtrl, likeCtrl, favoriteCtrl, commentCtrl, notificationCtrl, danmakuCtrl)
